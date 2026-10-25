@@ -30,10 +30,20 @@
 
     /* ===== 侧边栏 ===== */
     #sidebar {
-      width: 260px; flex-shrink: 0;
-      background: #10131a; border-right: 1px solid #2a2d35;
+      width: 260px; min-width: 200px; max-width: 480px;
+      flex-shrink: 0; background: #10131a;
+      border-right: 1px solid #2a2d35;
       display: flex; flex-direction: column;
       padding-top: env(safe-area-inset-top);
+      position: relative; transition: width 0s;
+    }
+    #sidebar-resizer {
+      position: absolute; top: 0; right: -3px; bottom: 0;
+      width: 6px; cursor: col-resize; z-index: 101;
+      background: transparent; transition: background 0.15s;
+    }
+    #sidebar-resizer:hover, #sidebar-resizer.dragging {
+      background: rgba(79, 124, 255, 0.4);
     }
     .sidebar-header {
       padding: 12px 14px; display: flex; align-items: center; gap: 8px;
@@ -41,16 +51,25 @@
     }
     .sidebar-title { flex: 1; font-size: 14px; font-weight: 600; }
     .sidebar-header button {
-      background: #4f7cff; border: none; color: #fff; font-size: 14px;
+      background: #4f7cff; border: none; color: #fff; font-size: 16px;
       width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
+      font-weight: 600;
     }
     .sidebar-header button:hover { background: #3d63d9; }
-    .conv-list { flex: 1; overflow-y: auto; padding: 8px; }
+    #conv-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .conv-section-title {
+      font-size: 11px; color: #6b7280; font-weight: 600;
+      padding: 10px 10px 6px; letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .conv-section-title:not(:first-child) {
+      border-top: 1px solid #2a2d35; margin-top: 6px; padding-top: 12px;
+    }
     .conv-item {
       display: flex; align-items: center; gap: 6px;
-      padding: 10px 10px; border-radius: 8px; cursor: pointer;
-      margin-bottom: 4px; transition: background 0.15s;
+      padding: 9px 10px; border-radius: 8px; cursor: pointer;
+      margin-bottom: 3px; transition: background 0.15s;
     }
     .conv-item:hover { background: #1c1f2a; }
     .conv-item.active { background: #2b3a67; }
@@ -61,11 +80,14 @@
     .conv-item-menu {
       background: transparent; border: none; color: #7c8595;
       font-size: 16px; cursor: pointer; padding: 0 4px; border-radius: 4px;
-      opacity: 0; transition: opacity 0.15s;
+      opacity: 0; transition: opacity 0.15s; line-height: 1;
     }
     .conv-item:hover .conv-item-menu { opacity: 1; }
     .conv-item-menu:hover { background: #2a2d35; color: #e8eaed; }
-    .empty-tip { color: #5a5f6b; font-size: 12px; text-align: center; padding: 30px 10px; }
+    .empty-tip {
+      color: #5a5f6b; font-size: 12px; text-align: center;
+      padding: 30px 10px; line-height: 1.7;
+    }
     .sidebar-footer {
       padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
       border-top: 1px solid #2a2d35;
@@ -124,14 +146,34 @@
       padding: 6px 14px; border-radius: 20px;
       border: 1px solid #3a4d80;
     }
-    .msg { max-width: 88%; line-height: 1.65; word-break: break-word; }
+    .msg-wrap { position: relative; max-width: 88%; display: flex; flex-direction: column; }
+    .msg-wrap.assistant { align-self: flex-start; width: 100%; }
+    .msg-wrap.user { align-self: flex-end; }
+    .msg-actions {
+      position: absolute; top: -6px; right: 0;
+      display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s;
+      background: #151821; border: 1px solid #2a2d35;
+      border-radius: 6px; padding: 2px;
+      z-index: 5;
+    }
+    .msg-wrap:hover .msg-actions { opacity: 1; }
+    .msg-wrap.user .msg-actions { right: auto; left: 0; }
+    .msg-actions button {
+      background: transparent; border: none; color: #9aa3b2;
+      font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+    }
+    .msg-actions button:hover { background: #2a2d35; color: #e8eaed; }
+    .msg-actions button.danger:hover { background: #7a3a3a; color: #fff; }
+    @media (hover: none) { .msg-actions { display: none; } }
+
+    .msg { line-height: 1.65; word-break: break-word; }
     .msg.user {
-      align-self: flex-end; background: #2b3a67;
+      background: #2b3a67;
       padding: 10px 14px; border-radius: 14px 14px 4px 14px;
       white-space: pre-wrap;
     }
     .msg.assistant {
-      align-self: flex-start; background: #1c1f2a;
+      background: #1c1f2a;
       padding: 10px 14px; border-radius: 14px 14px 14px 4px;
       width: 100%;
     }
@@ -211,7 +253,7 @@
     #send-btn:hover { background: #3d63d9; }
     #send-btn:disabled { background: #2a2d35; color: #5a5f6b; cursor: not-allowed; }
 
-    /* ===== 通用模态框 ===== */
+    /* ===== 模态框 ===== */
     .modal {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.6); z-index: 1000;
@@ -270,7 +312,6 @@
     .range-row input[type="range"] { flex: 1; }
     .range-row span { font-size: 13px; color: #b0b6c3; min-width: 32px; }
 
-    /* 运行预览 */
     .run-modal {
       position: fixed; inset: 0; background: rgba(0,0,0,0.72);
       display: none; flex-direction: column; z-index: 1001;
@@ -291,7 +332,6 @@
     .run-bar button:hover { background: #3a3f4c; }
     #run-frame { flex: 1; border: none; background: #fff; }
 
-    /* 会话菜单 */
     .conv-menu {
       position: fixed; background: #1c1f2a; border: 1px solid #2a2d35;
       border-radius: 8px; padding: 4px; z-index: 500;
@@ -312,23 +352,24 @@
         position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
         transform: translateX(-100%);
         transition: transform 0.25s ease;
-        width: 280px;
+        width: 280px !important; max-width: 85vw;
       }
       #sidebar.open { transform: translateX(0); }
       #sidebar-backdrop.show { display: block; }
+      #sidebar-resizer { display: none; }
       #menu-btn { display: block; }
     }
     @media (max-width: 600px) {
       input, select, textarea, button { font-size: 16px; }
       .model-select { order: 10; width: 100%; max-width: none; }
       #messages { padding: 14px 12px; }
-      .msg { max-width: 95%; }
+      .msg-wrap { max-width: 95%; }
     }
+    body.resizing { user-select: none; cursor: col-resize; }
   </style>
 </head>
 <body>
 
-<!-- ===== iOS 图标生成 ===== -->
 <script>
 (function () {
   function rr(ctx, x, y, w, h, r) {
@@ -365,9 +406,7 @@
     ctx.restore();
     return c.toDataURL('image/png');
   }
-  const png180 = draw(180, 0);
-  const png192 = draw(192, 0.08);
-  const png512 = draw(512, 0.08);
+  const png180 = draw(180, 0), png192 = draw(192, 0.08), png512 = draw(512, 0.08);
   const head = document.head;
   const add = (rel, href, sizes) => {
     const l = document.createElement('link');
@@ -391,20 +430,19 @@
 })();
 </script>
 
-<!-- ===== 侧边栏 ===== -->
 <aside id="sidebar">
+  <div id="sidebar-resizer" title="拖动调整宽度"></div>
   <div class="sidebar-header">
     <span class="sidebar-title">对话列表</span>
     <button id="new-chat-btn" title="新建对话">＋</button>
   </div>
-  <div id="conv-list" class="conv-list"></div>
+  <div id="conv-list"></div>
   <div class="sidebar-footer">
     <button id="settings-btn">⚙ 设置</button>
   </div>
 </aside>
 <div id="sidebar-backdrop"></div>
 
-<!-- ===== 主区域 ===== -->
 <main id="main">
   <header id="main-header">
     <button id="menu-btn">☰</button>
@@ -427,7 +465,7 @@
   </footer>
 </main>
 
-<!-- ===== 新建对话模态框 ===== -->
+<!-- 新建对话 -->
 <div class="modal" id="new-chat-modal">
   <div class="modal-content">
     <h2>新建对话</h2>
@@ -440,10 +478,10 @@
         <input type="text" id="nc-rp-name" placeholder="例如：Sherlock Holmes">
       </label>
       <label>性格
-        <textarea id="nc-rp-personality" placeholder="例如：冷静、逻辑严谨、略显傲慢，观察力极强"></textarea>
+        <textarea id="nc-rp-personality" placeholder="例如：冷静、逻辑严谨、略显傲慢"></textarea>
       </label>
       <label>说话风格
-        <textarea id="nc-rp-style" placeholder="例如：用词精确，喜欢用演绎法推理，偶尔引用化学或解剖学知识"></textarea>
+        <textarea id="nc-rp-style" placeholder="例如：用词精确，喜欢用演绎法推理"></textarea>
       </label>
       <label>背景设定
         <textarea id="nc-rp-background" placeholder="例如：19世纪伦敦贝克街221B的咨询侦探"></textarea>
@@ -456,20 +494,16 @@
   </div>
 </div>
 
-<!-- ===== 对话设置（编辑人设） ===== -->
+<!-- 对话设置 -->
 <div class="modal" id="conv-settings-modal">
   <div class="modal-content">
-    <h2>对话设置</h2>
+    <h2 id="cs-heading">对话设置</h2>
     <label>标题
       <input type="text" id="cs-title">
     </label>
-    <div class="tabs" id="cs-tabs">
-      <button class="tab active" data-mode="normal">普通模式</button>
-      <button class="tab" data-mode="roleplay">🎭 角色扮演</button>
-    </div>
-    <div id="cs-roleplay-form" style="display:none">
+    <div id="cs-roleplay-only" style="display:none">
       <label>角色名
-        <input type="text" id="cs-rp-name" placeholder="例如：Sherlock Holmes">
+        <input type="text" id="cs-rp-name">
       </label>
       <label>性格
         <textarea id="cs-rp-personality"></textarea>
@@ -488,7 +522,7 @@
   </div>
 </div>
 
-<!-- ===== 全局设置 ===== -->
+<!-- 全局设置 -->
 <div class="modal" id="global-settings-modal">
   <div class="modal-content">
     <h2>设置</h2>
@@ -516,7 +550,7 @@
   </div>
 </div>
 
-<!-- ===== 运行预览 ===== -->
+<!-- 运行预览 -->
 <div class="run-modal" id="run-modal">
   <div class="run-bar">
     <span>运行预览</span>
@@ -532,7 +566,6 @@
 (() => {
   'use strict';
 
-  // ============ 常量 ============
   const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
   const RENDER_INTERVAL = 80;
   const LS = {
@@ -540,11 +573,12 @@
     SETTINGS: 'aic_settings',
     CONVS: 'aic_convs',
     CURRENT: 'aic_current_conv',
+    SIDEBAR_W: 'aic_sidebar_w',
   };
 
-  // ============ 元素引用 ============
   const $ = id => document.getElementById(id);
   const $sidebar = $('sidebar');
+  const $sidebarResizer = $('sidebar-resizer');
   const $sidebarBackdrop = $('sidebar-backdrop');
   const $convList = $('conv-list');
   const $messages = $('messages');
@@ -556,57 +590,75 @@
   const $runFrame = $('run-frame');
   const $runTag = $('run-tag');
 
-  // ============ 状态 ============
   let convs = [];
   let currentId = '';
   let settings = { temperature: 0.7, maxTokens: 0 };
   let apiKey = '';
-  let streaming = null;   // { convId, assistantDiv, contentEl, renderer, abortController }
+  let streaming = null;
   let convMenu = null;
 
-  // ============ 存储 ============
+  // ===== 存储 =====
   function loadAll() {
     try { convs = JSON.parse(localStorage.getItem(LS.CONVS) || '[]'); } catch { convs = []; }
+    if (!Array.isArray(convs)) convs = [];
+    // 数据迁移与防御
+    convs.forEach(c => {
+      if (!c.id) c.id = uid();
+      if (!c.roleplay) c.roleplay = { enabled: false, name: '', personality: '', style: '', background: '' };
+      if (typeof c.roleplay.enabled !== 'boolean') c.roleplay.enabled = false;
+      if (!c.model) c.model = 'openrouter/free';
+      if (!Array.isArray(c.messages)) c.messages = [];
+      c.messages = c.messages.filter(m => m && m.role && typeof m.content === 'string');
+    });
     try { settings = { temperature: 0.7, maxTokens: 0, ...(JSON.parse(localStorage.getItem(LS.SETTINGS) || '{}')) }; } catch {}
     currentId = localStorage.getItem(LS.CURRENT) || '';
     apiKey = localStorage.getItem(LS.KEY) || '';
+
+    // 恢复侧边栏宽度
+    const w = parseInt(localStorage.getItem(LS.SIDEBAR_W), 10);
+    if (w && w >= 200 && w <= 480) $sidebar.style.width = w + 'px';
   }
   function saveConvs() {
     try { localStorage.setItem(LS.CONVS, JSON.stringify(convs)); }
     catch (e) { alert('存储空间不足，请清理部分旧对话'); }
   }
-  function saveSettings() {
-    localStorage.setItem(LS.SETTINGS, JSON.stringify(settings));
-  }
-  function saveKey() {
-    if (apiKey) localStorage.setItem(LS.KEY, apiKey);
-    else localStorage.removeItem(LS.KEY);
-  }
+  function saveSettings() { localStorage.setItem(LS.SETTINGS, JSON.stringify(settings)); }
   function saveCurrent() { localStorage.setItem(LS.CURRENT, currentId); }
 
-  // ============ 工具 ============
+  // ===== 工具 =====
   const uid = () => 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const getCurrent = () => convs.find(c => c.id === currentId) || null;
+  const getById = id => convs.find(c => c.id === id) || null;
   const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-  function scrollBottom() { $messages.scrollTop = $messages.scrollHeight; }
-
   function tsStamp() {
     const d = new Date(), p = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
   }
 
-  // ============ Markdown / 高亮 ============
+  // ===== 智能滚动 =====
+  let userScrolledUp = false;
+  $messages.addEventListener('scroll', () => {
+    const nearBottom = $messages.scrollHeight - $messages.scrollTop - $messages.clientHeight < 80;
+    userScrolledUp = !nearBottom;
+  });
+  function scrollBottom(force = false) {
+    if (force || !userScrolledUp) {
+      $messages.scrollTop = $messages.scrollHeight;
+    }
+  }
+
+  // ===== Markdown =====
   if (window.marked) marked.setOptions({ gfm: true, breaks: true });
 
   function renderMarkdown(container, text) {
-    if (!window.marked) { container.textContent = text; return; }
-    const html = marked.parse(text);
+    const src = typeof text === 'string' ? text : '';
+    if (!window.marked) { container.textContent = src; return; }
+    let html;
+    try { html = marked.parse(src); } catch { container.textContent = src; return; }
     const safe = window.DOMPurify ? DOMPurify.sanitize(html, { ADD_ATTR: ['target'] }) : html;
     container.innerHTML = safe;
     container.querySelectorAll('a').forEach(a => {
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
+      a.target = '_blank'; a.rel = 'noopener noreferrer';
     });
   }
 
@@ -617,36 +669,24 @@
     });
   }
 
-  // ============ 语言 / 后缀检测 ============
+  // ===== 语言检测 =====
   const EXT_MAP = {
-    python:'py', py:'py', python3:'py',
-    javascript:'js', js:'js', jsx:'jsx', node:'js', nodejs:'js', mjs:'mjs', cjs:'cjs',
-    typescript:'ts', ts:'ts', tsx:'tsx',
-    html:'html', htm:'html', xhtml:'xhtml',
-    css:'css', scss:'scss', sass:'sass', less:'less',
-    svg:'svg', xml:'xml',
-    json:'json', json5:'json5', jsonc:'jsonc',
-    yaml:'yml', yml:'yml',
-    markdown:'md', md:'md',
-    shell:'sh', sh:'sh', bash:'sh', zsh:'sh', fish:'fish',
-    powershell:'ps1', ps1:'ps1', pwsh:'ps1',
-    cmd:'bat', bat:'bat', batch:'bat',
-    c:'c', h:'h',
-    cpp:'cpp', 'c++':'cpp', cc:'cpp', cxx:'cpp', hpp:'hpp',
-    csharp:'cs', cs:'cs', 'c#':'cs',
-    java:'java', kotlin:'kt', kt:'kt', kts:'kts',
-    go:'go', golang:'go', rust:'rs', rs:'rs',
-    ruby:'rb', rb:'rb', php:'php', swift:'swift', dart:'dart',
-    scala:'scala', lua:'lua', r:'r', sql:'sql',
-    perl:'pl', pl:'pl', elixir:'ex', ex:'ex', exs:'exs',
-    erlang:'erl', erl:'erl', haskell:'hs', hs:'hs',
-    clojure:'clj', clj:'clj', cljs:'cljs',
-    dockerfile:'Dockerfile', docker:'Dockerfile',
-    makefile:'Makefile', make:'Makefile',
+    python:'py', py:'py', python3:'py', javascript:'js', js:'js', jsx:'jsx',
+    node:'js', nodejs:'js', mjs:'mjs', cjs:'cjs', typescript:'ts', ts:'ts', tsx:'tsx',
+    html:'html', htm:'html', xhtml:'xhtml', css:'css', scss:'scss', sass:'sass', less:'less',
+    svg:'svg', xml:'xml', json:'json', json5:'json5', jsonc:'jsonc', yaml:'yml', yml:'yml',
+    markdown:'md', md:'md', shell:'sh', sh:'sh', bash:'sh', zsh:'sh', fish:'fish',
+    powershell:'ps1', ps1:'ps1', pwsh:'ps1', cmd:'bat', bat:'bat', batch:'bat',
+    c:'c', h:'h', cpp:'cpp', 'c++':'cpp', cc:'cpp', cxx:'cpp', hpp:'hpp',
+    csharp:'cs', cs:'cs', 'c#':'cs', java:'java', kotlin:'kt', kt:'kt', kts:'kts',
+    go:'go', golang:'go', rust:'rs', rs:'rs', ruby:'rb', rb:'rb', php:'php',
+    swift:'swift', dart:'dart', scala:'scala', lua:'lua', r:'r', sql:'sql',
+    perl:'pl', pl:'pl', elixir:'ex', ex:'ex', exs:'exs', erlang:'erl', erl:'erl',
+    haskell:'hs', hs:'hs', clojure:'clj', clj:'clj', cljs:'cljs',
+    dockerfile:'Dockerfile', docker:'Dockerfile', makefile:'Makefile', make:'Makefile',
     nginx:'conf', ini:'ini', toml:'toml', conf:'conf', env:'env',
     plaintext:'txt', text:'txt', txt:'txt', plain:'txt',
   };
-
   function detectLang(codeEl) {
     const cls = codeEl.className || '';
     let m = cls.match(/(?:^|\s)language-([\w+#.\-]+)/i) || cls.match(/(?:^|\s)lang-([\w+#.\-]+)/i);
@@ -655,7 +695,6 @@
     return '';
   }
   const langToExt = lang => !lang ? 'txt' : (EXT_MAP[lang] || lang.replace(/[^\w+#\-]/g, ''));
-
   function detectRunnableKind(lang, code) {
     const l = (lang || '').toLowerCase();
     if (l === 'html' || l === 'htm' || l === 'xhtml') return 'html';
@@ -665,7 +704,6 @@
     if (/^<!doctype\s+html/i.test(t) || /^<html[\s>]/i.test(t)) return 'html';
     return null;
   }
-
   function mimeForExt(ext) {
     switch (ext.toLowerCase()) {
       case 'html': case 'htm': return 'text/html';
@@ -679,26 +717,21 @@
     }
   }
 
-  // ============ 复制 / 下载 ============
+  // ===== 复制/下载 =====
   async function copyText(text) {
     try {
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
+        await navigator.clipboard.writeText(text); return true;
       }
     } catch {}
     const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.top = '-9999px';
-    document.body.appendChild(ta);
-    ta.select();
+    ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+    document.body.appendChild(ta); ta.select();
     let ok = false;
     try { ok = document.execCommand('copy'); } catch {}
     document.body.removeChild(ta);
     return ok;
   }
-
   function downloadText(filename, text, mime) {
     const blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -708,7 +741,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  // ============ 运行预览 ============
+  // ===== 运行预览 =====
   let currentRunUrl = null;
   function runCode(code, kind) {
     let html;
@@ -721,8 +754,7 @@
     } else html = code;
 
     if (currentRunUrl) { URL.revokeObjectURL(currentRunUrl); currentRunUrl = null; }
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    currentRunUrl = URL.createObjectURL(blob);
+    currentRunUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
     $runTag.textContent = kind.toUpperCase();
     $runFrame.src = currentRunUrl;
     $runModal.classList.add('show');
@@ -742,14 +774,13 @@
     if (e.key === 'Escape' && $runModal.classList.contains('show')) closeRun();
   });
 
-  // ============ 代码块按钮 ============
+  // ===== 代码块按钮 =====
   function addCodeActions(container) {
     container.querySelectorAll('pre').forEach(pre => {
       if (pre.querySelector('.code-actions')) return;
       const codeEl = pre.querySelector('code');
       if (!codeEl) return;
-
-      const code = codeEl.textContent;
+      const code = codeEl.textContent || '';
       const lang = detectLang(codeEl);
       const ext = langToExt(lang);
       const kind = detectRunnableKind(lang, code);
@@ -760,7 +791,7 @@
       const copyBtn = document.createElement('button');
       copyBtn.type = 'button'; copyBtn.className = 'code-btn'; copyBtn.textContent = '复制';
       copyBtn.addEventListener('click', async () => {
-        const ok = await copyText(codeEl.textContent);
+        const ok = await copyText(codeEl.textContent || '');
         copyBtn.textContent = ok ? '已复制' : '失败';
         copyBtn.classList.add(ok ? 'ok' : 'fail');
         setTimeout(() => { copyBtn.textContent = '复制'; copyBtn.classList.remove('ok', 'fail'); }, 1500);
@@ -770,16 +801,13 @@
       const dlBtn = document.createElement('button');
       dlBtn.type = 'button'; dlBtn.className = 'code-btn'; dlBtn.textContent = '下载';
       dlBtn.title = `下载 .${ext}`;
-      dlBtn.addEventListener('click', () => {
-        downloadText(`snippet-${tsStamp()}.${ext}`, codeEl.textContent, mimeForExt(ext));
-      });
+      dlBtn.addEventListener('click', () => downloadText(`snippet-${tsStamp()}.${ext}`, codeEl.textContent || '', mimeForExt(ext)));
       actions.appendChild(dlBtn);
 
       if (kind) {
         const runBtn = document.createElement('button');
         runBtn.type = 'button'; runBtn.className = 'code-btn run'; runBtn.textContent = '运行';
-        runBtn.title = `运行 ${kind.toUpperCase()}`;
-        runBtn.addEventListener('click', () => runCode(codeEl.textContent, kind));
+        runBtn.addEventListener('click', () => runCode(codeEl.textContent || '', kind));
         actions.appendChild(runBtn);
       }
 
@@ -787,7 +815,7 @@
     });
   }
 
-  // ============ 角色扮演 system prompt ============
+  // ===== 角色扮演 =====
   function buildSystemPrompt(conv) {
     const rp = conv.roleplay;
     if (!rp || !rp.enabled) return '';
@@ -796,11 +824,11 @@
     if (rp.personality) parts.push(`【性格】${rp.personality}`);
     if (rp.style) parts.push(`【说话风格】${rp.style}`);
     if (rp.background) parts.push(`【背景设定】${rp.background}`);
-    parts.push(`除非用户明确要求，否则不要跳出角色，不要提及自己是 AI 或语言模型，不要描述"作为 AI 我无法……"之类的话。`);
+    parts.push(`除非用户明确要求，否则不要跳出角色，不要提及自己是 AI 或语言模型。`);
     return parts.join('\n\n');
   }
 
-  // ============ 会话管理 ============
+  // ===== 会话管理 =====
   function createConversation(opts = {}) {
     const rp = opts.roleplay || { enabled: false, name: '', personality: '', style: '', background: '' };
     const conv = {
@@ -808,7 +836,7 @@
       title: rp.enabled && rp.name ? `与 ${rp.name} 的对话` : '新对话',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      model: $model.value || 'openrouter/free',
+      model: 'openrouter/free',
       roleplay: { ...rp },
       messages: [],
     };
@@ -818,13 +846,22 @@
     renderConvList();
     renderCurrent();
     closeSidebar();
+    $input.focus();
     return conv;
   }
 
   function switchConversation(id) {
-    if (streaming && streaming.convId === id) { closeSidebar(); return; }
-    if (streaming) streaming.abortController.abort();
+    // 关键修复：数据一致性 + 幂等
+    if (!getById(id)) return;   // 不存在
+    if (id === currentId) { closeSidebar(); return; }
+
+    // 流式切换到其他对话时，中断（内容会在 finally 里存到原对话）
+    if (streaming) {
+      try { streaming.abortController.abort(); } catch {}
+    }
+
     currentId = id;
+    userScrolledUp = false;
     saveCurrent();
     renderConvList();
     renderCurrent();
@@ -832,13 +869,18 @@
   }
 
   function deleteConversation(id) {
-    const conv = convs.find(c => c.id === id);
+    const conv = getById(id);
     if (!conv) return;
-    if (!confirm(`确定删除对话「${conv.title}」？此操作无法撤销。`)) return;
-    if (streaming && streaming.convId === id) streaming.abortController.abort();
+    if (!confirm(`确定删除对话「${conv.title}」？`)) return;
+    if (streaming && streaming.convId === id) {
+      try { streaming.abortController.abort(); } catch {}
+    }
     convs = convs.filter(c => c.id !== id);
-    if (currentId === id) currentId = convs[0]?.id || '';
-    saveConvs(); saveCurrent();
+    if (currentId === id) {
+      currentId = convs[0]?.id || '';
+      saveCurrent();
+    }
+    saveConvs();
     renderConvList();
     renderCurrent();
   }
@@ -861,62 +903,135 @@
     downloadText(`${conv.title.replace(/[\\/:*?"<>|]/g, '_')}-${tsStamp()}.md`, lines.join('\n'), 'text/markdown');
   }
 
-  // ============ 渲染会话列表 ============
+  // ===== 渲染列表（分区） =====
   function renderConvList() {
+    const normal = convs.filter(c => !c.roleplay?.enabled);
+    const roleplay = convs.filter(c => c.roleplay?.enabled);
+
     $convList.innerHTML = '';
-    if (convs.length === 0) {
-      $convList.innerHTML = '<div class="empty-tip">还没有对话，点右上角 ＋ 新建</div>';
+
+    if (normal.length === 0 && roleplay.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-tip';
+      empty.innerHTML = '还没有对话<br>点右上角 ＋ 新建';
+      $convList.appendChild(empty);
       return;
     }
-    convs.forEach(conv => {
-      const item = document.createElement('div');
-      item.className = 'conv-item' + (conv.id === currentId ? ' active' : '');
 
-      const title = document.createElement('div');
-      title.className = 'conv-item-title';
-      title.textContent = (conv.roleplay?.enabled ? '🎭 ' : '') + (conv.title || '新对话');
+    if (normal.length > 0) {
+      const t = document.createElement('div');
+      t.className = 'conv-section-title';
+      t.textContent = `📁 普通对话 (${normal.length})`;
+      $convList.appendChild(t);
+      normal.forEach(c => $convList.appendChild(makeConvItem(c)));
+    }
 
-      const menuBtn = document.createElement('button');
-      menuBtn.className = 'conv-item-menu';
-      menuBtn.textContent = '⋯';
-      menuBtn.title = '更多';
-      menuBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        showConvMenu(conv.id, menuBtn);
-      });
-
-      item.appendChild(title);
-      item.appendChild(menuBtn);
-      item.addEventListener('click', () => {
-        if (conv.id !== currentId) switchConversation(conv.id);
-        else closeSidebar();
-      });
-
-      $convList.appendChild(item);
-    });
+    if (roleplay.length > 0) {
+      const t = document.createElement('div');
+      t.className = 'conv-section-title';
+      t.textContent = `🎭 角色扮演 (${roleplay.length})`;
+      $convList.appendChild(t);
+      roleplay.forEach(c => $convList.appendChild(makeConvItem(c)));
+    }
   }
 
-  // ============ 会话菜单 ============
+  function makeConvItem(conv) {
+    const item = document.createElement('div');
+    item.className = 'conv-item' + (conv.id === currentId ? ' active' : '');
+    item.dataset.id = conv.id;
+
+    const title = document.createElement('div');
+    title.className = 'conv-item-title';
+    title.textContent = conv.title || '新对话';
+
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'conv-item-menu';
+    menuBtn.textContent = '⋯';
+    menuBtn.title = '更多';
+
+    // 菜单按钮：阻止冒泡，避免触发父 item 的切换
+    menuBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      showConvMenu(conv.id, menuBtn);
+    });
+    // 移动端长按
+    let longPressTimer = null;
+    menuBtn.addEventListener('touchstart', e => {
+      longPressTimer = setTimeout(() => {
+        showConvMenu(conv.id, menuBtn);
+      }, 500);
+    }, { passive: true });
+    menuBtn.addEventListener('touchend', () => {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    });
+
+    item.appendChild(title);
+    item.appendChild(menuBtn);
+
+    // 核心点击：切换对话
+    item.addEventListener('click', (e) => {
+      // 防御性：如果点在菜单按钮上，忽略
+      if (e.target.closest('.conv-item-menu')) return;
+      e.stopPropagation();
+      switchConversation(conv.id);
+    });
+
+    return item;
+  }
+
+  // ===== 会话菜单 =====
   function closeConvMenu() {
     if (convMenu) { convMenu.remove(); convMenu = null; }
     document.removeEventListener('mousedown', onGlobalMouseDown, true);
+    document.removeEventListener('touchstart', onGlobalMouseDown, true);
   }
   function onGlobalMouseDown(e) {
     if (convMenu && !convMenu.contains(e.target)) closeConvMenu();
   }
   function showConvMenu(id, anchorEl) {
     closeConvMenu();
-    const conv = convs.find(c => c.id === id);
+    const conv = getById(id);
     if (!conv) return;
 
+    const isRoleplay = !!conv.roleplay?.enabled;
     const menu = document.createElement('div');
     menu.className = 'conv-menu';
-    menu.innerHTML = `
-      <button data-a="rename">重命名</button>
-      <button data-a="edit">编辑人设</button>
-      <button data-a="export">导出 Markdown</button>
-      <button data-a="delete" class="danger">删除</button>
-    `;
+
+    // 根据模式决定菜单项
+    const items = [];
+    if (isRoleplay) {
+      items.push({ a: 'edit-title', label: '编辑标题' });
+      items.push({ a: 'edit-roleplay', label: '编辑人设' });
+    } else {
+      items.push({ a: 'edit-title', label: '重命名' });
+    }
+    items.push({ a: 'export', label: '导出 Markdown' });
+    items.push({ a: 'delete', label: '删除', cls: 'danger' });
+
+    items.forEach(it => {
+      const btn = document.createElement('button');
+      btn.textContent = it.label;
+      if (it.cls) btn.className = it.cls;
+      btn.addEventListener('click', () => {
+        closeConvMenu();
+        if (it.a === 'edit-title') {
+          const t = prompt('输入新标题', conv.title);
+          if (t !== null) {
+            conv.title = t.trim() || conv.title;
+            saveConvs(); renderConvList();
+            if (conv.id === currentId) $convTitle.textContent = conv.title;
+          }
+        } else if (it.a === 'edit-roleplay') {
+          openConvSettings(conv.id);
+        } else if (it.a === 'export') {
+          exportConversation(conv);
+        } else if (it.a === 'delete') {
+          deleteConversation(conv.id);
+        }
+      });
+      menu.appendChild(btn);
+    });
 
     const rect = anchorEl.getBoundingClientRect();
     menu.style.top = (rect.bottom + 4) + 'px';
@@ -924,42 +1039,35 @@
     document.body.appendChild(menu);
     convMenu = menu;
 
-    menu.addEventListener('click', e => {
-      const a = e.target.dataset.a;
-      if (!a) return;
-      closeConvMenu();
-      if (a === 'rename') {
-        const t = prompt('输入新标题', conv.title);
-        if (t !== null) {
-          conv.title = t.trim() || conv.title;
-          saveConvs(); renderConvList();
-          if (conv.id === currentId) $convTitle.textContent = conv.title;
-        }
-      } else if (a === 'edit') {
-        openConvSettings(conv.id);
-      } else if (a === 'export') {
-        exportConversation(conv);
-      } else if (a === 'delete') {
-        deleteConversation(conv.id);
-      }
-    });
-
-    setTimeout(() => document.addEventListener('mousedown', onGlobalMouseDown, true), 0);
+    setTimeout(() => {
+      document.addEventListener('mousedown', onGlobalMouseDown, true);
+      document.addEventListener('touchstart', onGlobalMouseDown, true);
+    }, 0);
   }
 
-  // ============ 渲染当前会话 ============
+  // ===== 渲染消息 =====
   function renderCurrent() {
     $messages.innerHTML = '';
+    $messages.scrollTop = 0;
     const conv = getCurrent();
 
     if (!conv) {
       $convTitle.textContent = '新对话';
-      $messages.innerHTML = '<div class="empty-tip" style="text-align:center;padding:60px 20px;">还没有对话，点击左上角 ☰ → ＋ 新建对话</div>';
+      $model.value = 'openrouter/free';
+      const empty = document.createElement('div');
+      empty.className = 'empty-tip';
+      empty.style.padding = '60px 20px';
+      empty.innerHTML = '还没有对话<br>点击左上角 ☰ → ＋ 新建对话';
+      $messages.appendChild(empty);
       return;
     }
 
-    $convTitle.textContent = conv.title;
-    $model.value = conv.model || 'openrouter/free';
+    $convTitle.textContent = conv.title || '新对话';
+
+    // 模型下拉：确保值存在
+    const modelExists = Array.from($model.options).some(o => o.value === conv.model);
+    $model.value = modelExists ? conv.model : 'openrouter/free';
+    if (!modelExists) conv.model = 'openrouter/free';
 
     if (conv.roleplay?.enabled) {
       const banner = document.createElement('div');
@@ -969,10 +1077,15 @@
     }
 
     conv.messages.forEach(m => appendMessageDOM(m));
-    scrollBottom();
+    setTimeout(() => scrollBottom(true), 0);
   }
 
   function appendMessageDOM(msg) {
+    if (!msg || !msg.role) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = `msg-wrap ${msg.role}`;
+
     const div = document.createElement('div');
     div.className = `msg ${msg.role}`;
 
@@ -985,19 +1098,222 @@
       const md = document.createElement('div');
       md.className = 'md';
       div.appendChild(md);
-      $messages.appendChild(div);
-      renderMarkdown(md, msg.content);
+      wrap.appendChild(div);
+      $messages.appendChild(wrap);
+
+      renderMarkdown(md, msg.content || '');
       addCodeActions(md);
       highlightAll(md);
     } else {
-      div.textContent = msg.content;
-      $messages.appendChild(div);
+      div.textContent = msg.content || '';
+      wrap.appendChild(div);
+      $messages.appendChild(wrap);
     }
-    scrollBottom();
-    return div;
+
+    attachMessageActions(wrap, msg);
+    return wrap;
   }
 
-  // ============ 流式渲染 ============
+  function attachMessageActions(wrap, msg) {
+    const conv = getCurrent();
+    if (!conv) return;
+
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+
+    // 重新生成：只在最后一条助手消息上显示
+    if (msg.role === 'assistant') {
+      const idx = conv.messages.indexOf(msg);
+      const isLast = idx === conv.messages.length - 1;
+      if (isLast && !streaming) {
+        const regenBtn = document.createElement('button');
+        regenBtn.textContent = '重新生成';
+        regenBtn.addEventListener('click', () => regenerate(idx));
+        actions.appendChild(regenBtn);
+      }
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '删除';
+    delBtn.className = 'danger';
+    delBtn.addEventListener('click', () => {
+      const idx = conv.messages.indexOf(msg);
+      if (idx < 0) return;
+      if (!confirm('删除此消息及之后的所有消息？')) return;
+      conv.messages.splice(idx);
+      saveConvs();
+      renderCurrent();
+    });
+    actions.appendChild(delBtn);
+
+    wrap.appendChild(actions);
+  }
+
+  // ===== 重新生成 =====
+  async function regenerate(fromIdx) {
+    const conv = getCurrent();
+    if (!conv || streaming) return;
+    // 截断到该条助手消息之前（保留更早的对话）
+    conv.messages.splice(fromIdx);
+    saveConvs();
+    renderCurrent();
+
+    // 触发一次仅生成（用空用户消息占位太丑，直接复用最后一条用户消息）
+    const lastUserIdx = [...conv.messages].reverse().findIndex(m => m.role === 'user');
+    if (lastUserIdx < 0) return;
+    // 因为前面 splice 已删掉最后助手，最后一条就是用户消息
+    if (conv.messages[conv.messages.length - 1]?.role !== 'user') return;
+
+    await generateAssistant(conv);
+  }
+
+  // ===== 通用生成（被 send 和 regenerate 共用） =====
+  async function generateAssistant(conv) {
+    if (!apiKey) { alert('请先在设置里填入 API Key'); openGlobalSettings(); return; }
+    if (streaming) return;
+
+    const myConvId = conv.id;
+    userScrolledUp = false;
+
+    // 构建容器
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-wrap assistant';
+    const assistantDiv = document.createElement('div');
+    assistantDiv.className = 'msg assistant';
+    const label = document.createElement('div');
+    label.className = 'label'; label.textContent = '助手';
+    assistantDiv.appendChild(label);
+    const contentEl = document.createElement('div');
+    contentEl.className = 'md streaming';
+    assistantDiv.appendChild(contentEl);
+    wrap.appendChild(assistantDiv);
+    $messages.appendChild(wrap);
+    scrollBottom(true);
+
+    const renderer = makeRenderer(contentEl);
+    const abortController = new AbortController();
+    streaming = { convId: myConvId, assistantDiv, contentEl, renderer, abortController };
+    setStreamingUI(true);
+
+    let wasAborted = false;
+
+    try {
+      const sys = buildSystemPrompt(conv);
+      const messagesForAPI = [];
+      if (sys) messagesForAPI.push({ role: 'system', content: sys });
+      messagesForAPI.push(...conv.messages);
+
+      const body = {
+        model: conv.model || 'openrouter/free',
+        messages: messagesForAPI,
+        stream: true,
+        temperature: settings.temperature ?? 0.7,
+      };
+      if (settings.maxTokens > 0) body.max_tokens = settings.maxTokens;
+
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errText.slice(0, 300)}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx + 1);
+          if (!line || line.startsWith(':')) continue;
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              renderer.setText(renderer.text + delta);
+              renderer.schedule();
+            }
+          } catch {}
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        wasAborted = true;
+      } else {
+        assistantDiv.classList.add('error');
+        contentEl.textContent = `请求失败：${err.message}`;
+      }
+    } finally {
+      contentEl.classList.remove('streaming');
+      const targetConv = getById(myConvId);   // 关键：用锁定的 id 找回对话
+      if (renderer.text && targetConv) {
+        renderer.flush();
+        addCodeActions(contentEl);
+        highlightAll(contentEl);
+        let finalContent = renderer.text;
+        if (wasAborted) finalContent += '\n\n*（已停止）*';
+        targetConv.messages.push({ role: 'assistant', content: finalContent });
+        targetConv.updatedAt = Date.now();
+        saveConvs();
+        // 如果当前还在这个对话，重建操作按钮
+        if (currentId === myConvId) {
+          const wraps = $messages.querySelectorAll('.msg-wrap.assistant');
+          const last = wraps[wraps.length - 1];
+          if (last) {
+            last.querySelectorAll('.msg-actions').forEach(el => el.remove());
+            attachMessageActions(last, targetConv.messages[targetConv.messages.length - 1]);
+          }
+        }
+      } else if (!renderer.text) {
+        wrap.remove();
+      }
+      streaming = null;
+      setStreamingUI(false);
+      $input.focus();
+    }
+  }
+
+  // ===== 发送 =====
+  async function send() {
+    const conv = getCurrent();
+    if (!conv || streaming) return;
+    if (!apiKey) { alert('请先在设置里填入 API Key'); openGlobalSettings(); return; }
+
+    const text = $input.value.trim();
+    if (!text) return;
+
+    $input.value = '';
+    $input.style.height = '44px';
+    $input.focus();
+
+    conv.messages.push({ role: 'user', content: text });
+    conv.updatedAt = Date.now();
+    if (conv.title === '新对话') {
+      conv.title = text.slice(0, 24) + (text.length > 24 ? '…' : '');
+      $convTitle.textContent = conv.title;
+    }
+    saveConvs();
+    renderConvList();
+    appendMessageDOM({ role: 'user', content: text });
+    scrollBottom(true);
+
+    await generateAssistant(conv);
+  }
+
+  // ===== 流式渲染器 =====
   function makeRenderer(contentEl) {
     let last = 0, timer = null, full = '';
     const doRender = () => { renderMarkdown(contentEl, full); scrollBottom(); };
@@ -1024,151 +1340,12 @@
     $sendBtn.onclick = on ? () => streaming?.abortController.abort() : send;
   }
 
-  // ============ 发送 ============
-  async function send() {
-    const conv = getCurrent();
-    if (!conv || streaming) return;
-
-    if (!apiKey) {
-      alert('请先在设置里填入 OpenRouter API Key');
-      openGlobalSettings();
-      return;
-    }
-
-    const text = $input.value.trim();
-    if (!text) return;
-
-    $input.value = '';
-    $input.style.height = '44px';
-    $input.focus();
-
-    conv.messages.push({ role: 'user', content: text });
-    conv.updatedAt = Date.now();
-    if (conv.title === '新对话') {
-      conv.title = text.slice(0, 24) + (text.length > 24 ? '…' : '');
-      $convTitle.textContent = conv.title;
-    }
-    saveConvs();
-    renderConvList();
-    appendMessageDOM({ role: 'user', content: text });
-
-    // 准备 assistant 容器
-    const assistantDiv = document.createElement('div');
-    assistantDiv.className = 'msg assistant';
-    const label = document.createElement('div');
-    label.className = 'label'; label.textContent = '助手';
-    assistantDiv.appendChild(label);
-    const contentEl = document.createElement('div');
-    contentEl.className = 'md streaming';
-    assistantDiv.appendChild(contentEl);
-    $messages.appendChild(assistantDiv);
-    scrollBottom();
-
-    const renderer = makeRenderer(contentEl);
-    const abortController = new AbortController();
-    streaming = { convId: conv.id, assistantDiv, contentEl, renderer, abortController };
-    setStreamingUI(true);
-
-    let wasAborted = false;
-
-    try {
-      const sys = buildSystemPrompt(conv);
-      const messagesForAPI = [];
-      if (sys) messagesForAPI.push({ role: 'system', content: sys });
-      messagesForAPI.push(...conv.messages);
-
-      const body = {
-        model: conv.model || 'openrouter/free',
-        messages: messagesForAPI,
-        stream: true,
-        temperature: settings.temperature ?? 0.7,
-      };
-      if (settings.maxTokens > 0) body.max_tokens = settings.maxTokens;
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: abortController.signal,
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errText.slice(0, 300)}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          const line = buffer.slice(0, idx).trim();
-          buffer = buffer.slice(idx + 1);
-          if (!line || line.startsWith(':')) continue;
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(data);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              renderer.setText(renderer.text + delta);
-              renderer.schedule();
-            }
-          } catch {}
-        }
-      }
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        wasAborted = true;
-      } else {
-        assistantDiv.classList.add('error');
-        contentEl.textContent = `请求失败：${err.message}`;
-        contentEl.classList.remove('streaming');
-        streaming = null;
-        setStreamingUI(false);
-        return;
-      }
-    } finally {
-      contentEl.classList.remove('streaming');
-      if (renderer.text) {
-        renderer.flush();
-        addCodeActions(contentEl);
-        highlightAll(contentEl);
-        const targetConv = convs.find(c => c.id === (streaming?.convId || conv.id));
-        if (targetConv) {
-          let finalContent = renderer.text;
-          if (wasAborted) finalContent += '\n\n*（已停止）*';
-          targetConv.messages.push({ role: 'assistant', content: finalContent });
-          targetConv.updatedAt = Date.now();
-          saveConvs();
-        }
-      } else if (wasAborted && !assistantDiv.textContent.trim()) {
-        assistantDiv.remove();
-      }
-      streaming = null;
-      setStreamingUI(false);
-      $input.focus();
-    }
-  }
-
-  // ============ 新建对话模态框 ============
+  // ===== 新建对话 =====
   let ncMode = 'normal';
   function openNewChat() {
     ncMode = 'normal';
-    $('nc-rp-name').value = '';
-    $('nc-rp-personality').value = '';
-    $('nc-rp-style').value = '';
-    $('nc-rp-background').value = '';
+    $('nc-rp-name').value = ''; $('nc-rp-personality').value = '';
+    $('nc-rp-style').value = ''; $('nc-rp-background').value = '';
     updateNcModeUI();
     $('new-chat-modal').classList.add('show');
     closeSidebar();
@@ -1196,52 +1373,52 @@
     createConversation(opts);
   };
 
-  // ============ 对话设置（编辑人设） ============
+  // ===== 对话设置（普通模式无角色字段） =====
   let csTargetId = '';
-  let csMode = 'normal';
   function openConvSettings(id) {
-    const conv = convs.find(c => c.id === id);
+    const conv = getById(id);
     if (!conv) return;
     csTargetId = id;
-    csMode = conv.roleplay?.enabled ? 'roleplay' : 'normal';
-    $('cs-title').value = conv.title;
-    $('cs-rp-name').value = conv.roleplay?.name || '';
-    $('cs-rp-personality').value = conv.roleplay?.personality || '';
-    $('cs-rp-style').value = conv.roleplay?.style || '';
-    $('cs-rp-background').value = conv.roleplay?.background || '';
-    updateCsModeUI();
+    const isRoleplay = !!conv.roleplay?.enabled;
+
+    $('cs-heading').textContent = isRoleplay ? '编辑角色扮演' : '编辑标题';
+    $('cs-title').value = conv.title || '';
+
+    // 关键修复：普通模式彻底隐藏人设区域
+    const rpForm = $('cs-roleplay-only');
+    if (isRoleplay) {
+      rpForm.style.display = 'block';
+      $('cs-rp-name').value = conv.roleplay.name || '';
+      $('cs-rp-personality').value = conv.roleplay.personality || '';
+      $('cs-rp-style').value = conv.roleplay.style || '';
+      $('cs-rp-background').value = conv.roleplay.background || '';
+    } else {
+      rpForm.style.display = 'none';
+    }
+
     $('conv-settings-modal').classList.add('show');
   }
-  function updateCsModeUI() {
-    document.querySelectorAll('#cs-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.mode === csMode));
-    $('cs-roleplay-form').style.display = csMode === 'roleplay' ? 'block' : 'none';
-  }
-  document.querySelectorAll('#cs-tabs .tab').forEach(t => {
-    t.addEventListener('click', () => { csMode = t.dataset.mode; updateCsModeUI(); });
-  });
   $('cs-cancel').onclick = () => $('conv-settings-modal').classList.remove('show');
   $('cs-save').onclick = () => {
-    const conv = convs.find(c => c.id === csTargetId);
+    const conv = getById(csTargetId);
     if (!conv) return;
     conv.title = $('cs-title').value.trim() || conv.title;
-    if (csMode === 'roleplay') {
-      conv.roleplay = {
-        enabled: true,
-        name: $('cs-rp-name').value.trim(),
-        personality: $('cs-rp-personality').value.trim(),
-        style: $('cs-rp-style').value.trim(),
-        background: $('cs-rp-background').value.trim(),
-      };
-    } else {
-      conv.roleplay = { enabled: false, name: '', personality: '', style: '', background: '' };
+
+    if (conv.roleplay?.enabled) {
+      // 保留 enabled:true 和字段
+      conv.roleplay.name = $('cs-rp-name').value.trim();
+      conv.roleplay.personality = $('cs-rp-personality').value.trim();
+      conv.roleplay.style = $('cs-rp-style').value.trim();
+      conv.roleplay.background = $('cs-rp-background').value.trim();
     }
+
     saveConvs();
     renderConvList();
     if (conv.id === currentId) renderCurrent();
     $('conv-settings-modal').classList.remove('show');
   };
 
-  // ============ 全局设置 ============
+  // ===== 全局设置 =====
   function openGlobalSettings() {
     $('gs-key').value = apiKey;
     $('gs-remember-key').checked = !!localStorage.getItem(LS.KEY);
@@ -1264,17 +1441,15 @@
     $('global-settings-modal').classList.remove('show');
   };
   $('gs-clear-all').onclick = () => {
-    if (!confirm('确定清空所有数据（所有对话、设置、API Key）？此操作无法撤销。')) return;
-    localStorage.removeItem(LS.CONVS);
-    localStorage.removeItem(LS.SETTINGS);
-    localStorage.removeItem(LS.KEY);
-    localStorage.removeItem(LS.CURRENT);
+    if (!confirm('确定清空所有数据（对话、设置、Key）？')) return;
+    Object.values(LS).forEach(k => localStorage.removeItem(k));
     convs = []; currentId = ''; settings = { temperature: 0.7, maxTokens: 0 }; apiKey = '';
+    $sidebar.style.width = '';
     renderConvList(); renderCurrent();
     $('global-settings-modal').classList.remove('show');
   };
 
-  // ============ 侧边栏 ============
+  // ===== 侧边栏 & 拖拽 =====
   function openSidebar() {
     $sidebar.classList.add('open');
     $sidebarBackdrop.classList.add('show');
@@ -1286,7 +1461,29 @@
   $('menu-btn').onclick = openSidebar;
   $sidebarBackdrop.onclick = closeSidebar;
 
-  // ============ 顶部按钮 ============
+  let resizing = false;
+  $sidebarResizer.addEventListener('mousedown', e => {
+    if (window.innerWidth <= 768) return;
+    e.preventDefault();
+    resizing = true;
+    $sidebarResizer.classList.add('dragging');
+    document.body.classList.add('resizing');
+  });
+  document.addEventListener('mousemove', e => {
+    if (!resizing) return;
+    const w = Math.max(200, Math.min(480, e.clientX));
+    $sidebar.style.width = w + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!resizing) return;
+    resizing = false;
+    $sidebarResizer.classList.remove('dragging');
+    document.body.classList.remove('resizing');
+    const w = parseInt($sidebar.style.width, 10);
+    if (w) localStorage.setItem(LS.SIDEBAR_W, String(w));
+  });
+
+  // ===== 顶部按钮 =====
   $('new-chat-btn').onclick = openNewChat;
   $('settings-btn').onclick = openGlobalSettings;
   $('conv-settings-btn').onclick = () => {
@@ -1299,7 +1496,7 @@
     if (conv) { conv.model = $model.value; saveConvs(); }
   });
 
-  // ============ 输入交互 ============
+  // ===== 输入 =====
   $input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1312,30 +1509,16 @@
   });
   $sendBtn.onclick = send;
 
-  // ============ 初始化 ============
+  // ===== 初始化 =====
   loadAll();
-
-  // 兼容旧数据
-  convs.forEach(c => {
-    if (!c.roleplay) c.roleplay = { enabled: false, name: '', personality: '', style: '', background: '' };
-    if (!c.model) c.model = 'openrouter/free';
-  });
-
-  if (!currentId || !convs.find(c => c.id === currentId)) {
+  if (!currentId || !getById(currentId)) {
     if (convs.length > 0) currentId = convs[0].id;
   }
-
   renderConvList();
   renderCurrent();
   saveCurrent();
-
-  // 首次打开无 Key，自动弹设置
-  if (!apiKey) {
-    setTimeout(openGlobalSettings, 300);
-  }
-
-  // 焦点
-  if (apiKey) $input.focus();
+  if (!apiKey) setTimeout(openGlobalSettings, 300);
+  else $input.focus();
 })();
 </script>
 </body>
