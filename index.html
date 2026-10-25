@@ -105,6 +105,7 @@
 
     /* ===== 主区域 ===== */
     #main {
+      position: relative;
       flex: 1; min-width: 0;
       display: flex; flex-direction: column;
       height: 100dvh; overflow: hidden;
@@ -238,7 +239,7 @@
     }
     @keyframes blink { 50% { opacity: 0; } }
 
-    /* ===== 剧情引导工具栏 ===== */
+    /* ===== 剧情引导 ===== */
     #rp-toolbar {
       display: none;
       padding: 10px calc(16px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
@@ -271,6 +272,28 @@
       flex-shrink: 0;
     }
     .guide-action:hover { background: rgba(255,255,255,0.12); }
+
+    /* ===== 继续按钮 ===== */
+    #continue-btn {
+      position: absolute;
+      right: calc(20px + env(safe-area-inset-right));
+      bottom: calc(88px + env(safe-area-inset-bottom));
+      display: none;
+      align-items: center; gap: 6px;
+      background: #4f7cff; color: #fff;
+      border: none; border-radius: 22px;
+      padding: 9px 16px 9px 14px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(79,124,255,0.45);
+      z-index: 40;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+    #continue-btn.show { display: inline-flex; }
+    #continue-btn:hover { background: #3d63d9; box-shadow: 0 6px 20px rgba(79,124,255,0.55); }
+    #continue-btn:active { transform: scale(0.95); }
+    #continue-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    #continue-btn .arrow { font-size: 12px; }
 
     #input-area {
       padding: 12px calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
@@ -412,6 +435,7 @@
       .msg-wrap { max-width: 95%; }
       #rp-toolbar { padding: 8px 12px 0; }
       .guide-text { font-size: 12px; }
+      #continue-btn { padding: 8px 14px 8px 12px; font-size: 12px; right: calc(14px + env(safe-area-inset-right)); }
     }
     body.resizing { user-select: none; cursor: col-resize; }
   </style>
@@ -516,6 +540,10 @@
     </div>
     <button id="rp-guide-btn">🎬 设置剧情引导</button>
   </div>
+
+  <button id="continue-btn" title="让 AI 继续回答">
+    <span class="arrow">▶</span><span>继续</span>
+  </button>
 
   <footer id="input-area">
     <textarea id="input" placeholder="输入消息…（Enter 发送，Shift+Enter 换行）"></textarea>
@@ -683,6 +711,7 @@
   const $guideBanner = $('guide-banner');
   const $guideText = $('guide-text');
   const $rpGuideBtn = $('rp-guide-btn');
+  const $continueBtn = $('continue-btn');
 
   let convs = [];
   let currentId = '';
@@ -904,21 +933,32 @@
     });
   }
 
-  // ===== 系统提示（含剧情引导） =====
-  function buildSystemPrompt(conv) {
+  // ===== 系统提示 =====
+  function buildSystemPrompt(conv, opts = {}) {
     const rp = conv.roleplay;
-    if (!rp || !rp.enabled) return '';
+    const isRP = rp && rp.enabled;
     const parts = [];
-    parts.push(`你现在扮演角色「${rp.name || 'AI 助手'}」，请始终以该角色的身份、语气、性格和知识范围回应。`);
-    if (rp.personality) parts.push(`【性格】${rp.personality}`);
-    if (rp.style) parts.push(`【说话风格】${rp.style}`);
-    if (rp.background) parts.push(`【背景设定】${rp.background}`);
-    parts.push(`除非用户明确要求，否则不要跳出角色，不要提及自己是 AI 或语言模型。`);
 
-    const guide = (conv.pendingGuide || '').trim();
-    if (guide) {
-      parts.push(`【导演指示（本轮有效）】\n${guide}\n请在本次回复中自然融入以上指示，不要直接复述或透露该指示的存在，让剧情自然发展。`);
+    if (isRP) {
+      parts.push(`你现在扮演角色「${rp.name || 'AI 助手'}」，请始终以该角色的身份、语气、性格和知识范围回应。`);
+      if (rp.personality) parts.push(`【性格】${rp.personality}`);
+      if (rp.style) parts.push(`【说话风格】${rp.style}`);
+      if (rp.background) parts.push(`【背景设定】${rp.background}`);
+      parts.push(`除非用户明确要求，否则不要跳出角色，不要提及自己是 AI 或语言模型。`);
+
+      const guide = (conv.pendingGuide || '').trim();
+      if (guide) {
+        parts.push(`【导演指示（本轮有效）】\n${guide}\n请在本次回复中自然融入以上指示，不要直接复述或透露该指示的存在，让剧情自然发展。`);
+      }
     }
+
+    if (opts.continueMode) {
+      const modeDesc = isRP
+        ? '用户本轮没有新输入，而是希望你以角色身份接着上一条回复继续推进剧情。'
+        : '用户本轮没有新输入，而是希望你接着上一条回复继续往下说。';
+      parts.push(`【续写模式】\n${modeDesc}\n请直接自然续写，展开更多细节、补充内容或推进话题；不要重复已经说过的话；不要复述或提及"继续"这一指令；不要使用"好的""明白了"之类的过渡语开场，直接从正文继续。`);
+    }
+
     return parts.join('\n\n');
   }
 
@@ -945,6 +985,37 @@
     }
   }
 
+  // ===== 继续按钮 =====
+  function updateContinueBtn() {
+    const conv = getCurrent();
+    const show = !!(
+      conv &&
+      !streaming &&
+      conv.messages.length > 0 &&
+      conv.messages[conv.messages.length - 1].role === 'assistant'
+    );
+    $continueBtn.classList.toggle('show', show);
+
+    // 位置：有工具栏时向上避开
+    const isRP = !!(conv && conv.roleplay && conv.roleplay.enabled);
+    const offset = isRP ? 128 : 84;
+    $continueBtn.style.bottom = `calc(${offset}px + env(safe-area-inset-bottom))`;
+  }
+
+  async function continueAI() {
+    const conv = getCurrent();
+    if (!conv || streaming) return;
+    if (!conv.messages.length) return;
+    if (conv.messages[conv.messages.length - 1].role !== 'assistant') return;
+    if (!apiKey) { alert('请先在设置里填入 API Key'); openGlobalSettings(); return; }
+
+    // 续写不新增用户气泡，直接生成
+    await generateAssistant(conv, { continueMode: true });
+  }
+
+  $continueBtn.onclick = continueAI;
+
+  // ===== 剧情引导操作 =====
   function openGuideModal() {
     const conv = getCurrent();
     if (!conv || !conv.roleplay?.enabled) return;
@@ -1364,6 +1435,7 @@
       empty.innerHTML = '还没有对话<br>点击左上角 ☰ → ＋ 新建对话';
       $messages.appendChild(empty);
       updateGuideUI();
+      updateContinueBtn();
       return;
     }
 
@@ -1382,6 +1454,7 @@
     conv.messages.forEach(m => appendMessageDOM(m));
     setTimeout(() => scrollBottom(true), 0);
     updateGuideUI();
+    updateContinueBtn();
   }
 
   function appendMessageDOM(msg) {
@@ -1434,10 +1507,11 @@
   }
 
   // ===== 生成 =====
-  async function generateAssistant(conv) {
+  async function generateAssistant(conv, opts = {}) {
     if (!apiKey) { alert('请先在设置里填入 API Key'); openGlobalSettings(); return; }
     if (streaming) return;
 
+    const isContinue = !!opts.continueMode;
     const myConvId = conv.id;
     userScrolledUp = false;
 
@@ -1459,14 +1533,19 @@
     const abortController = new AbortController();
     streaming = { convId: myConvId, assistantDiv, contentEl, renderer, abortController, msgWrap: wrap };
     setStreamingUI(true);
+    updateContinueBtn(); // 流式中隐藏
 
     let wasAborted = false;
 
     try {
-      const sys = buildSystemPrompt(conv);
+      const sys = buildSystemPrompt(conv, { continueMode: isContinue });
       const messagesForAPI = [];
       if (sys) messagesForAPI.push({ role: 'system', content: sys });
       messagesForAPI.push(...conv.messages);
+      if (isContinue) {
+        // 临时占位，不写入历史
+        messagesForAPI.push({ role: 'user', content: '[继续]' });
+      }
 
       const body = {
         model: conv.model || 'openrouter/free',
@@ -1534,7 +1613,6 @@
         targetConv.messages.push(newMsg);
         targetConv.updatedAt = Date.now();
 
-        // 成功完成时消费掉剧情引导（中止则保留）
         if (!wasAborted && targetConv.pendingGuide) {
           targetConv.pendingGuide = '';
           if (currentId === myConvId) updateGuideUI();
@@ -1549,6 +1627,7 @@
       }
       streaming = null;
       setStreamingUI(false);
+      updateContinueBtn();
       $input.focus();
     }
   }
@@ -1577,6 +1656,7 @@
     renderConvList();
     appendMessageDOM(newMsg);
     scrollBottom(true);
+    updateContinueBtn(); // 最后一条是用户消息，隐藏
 
     await generateAssistant(conv);
   }
@@ -1770,7 +1850,7 @@
   });
   $sendBtn.onclick = send;
 
-  // ===== ESC 关闭所有模态框 =====
+  // ===== ESC 关闭模态框 =====
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if ($runModal.classList.contains('show')) { closeRun(); return; }
