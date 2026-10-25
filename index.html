@@ -35,7 +35,7 @@
       border-right: 1px solid #2a2d35;
       display: flex; flex-direction: column;
       padding-top: env(safe-area-inset-top);
-      position: relative; transition: width 0s;
+      position: relative;
     }
     #sidebar-resizer {
       position: absolute; top: 0; right: -3px; bottom: 0;
@@ -146,25 +146,30 @@
       padding: 6px 14px; border-radius: 20px;
       border: 1px solid #3a4d80;
     }
-    .msg-wrap { position: relative; max-width: 88%; display: flex; flex-direction: column; }
+
+    /* ===== 消息 wrap ===== */
+    .msg-wrap {
+      position: relative; max-width: 88%;
+      display: flex; flex-direction: column;
+    }
     .msg-wrap.assistant { align-self: flex-start; width: 100%; }
     .msg-wrap.user { align-self: flex-end; }
-    .msg-actions {
-      position: absolute; top: -6px; right: 0;
-      display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s;
-      background: #151821; border: 1px solid #2a2d35;
-      border-radius: 6px; padding: 2px;
-      z-index: 5;
+
+    /* ⋯ 触发按钮 */
+    .msg-trigger {
+      position: absolute; top: -8px; right: -8px;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #2a2d35; color: #9aa3b2;
+      border: 1px solid #3a3f4c; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; line-height: 1; font-weight: 700;
+      opacity: 0; transition: opacity 0.15s, background 0.15s;
+      z-index: 5; user-select: none;
     }
-    .msg-wrap:hover .msg-actions { opacity: 1; }
-    .msg-wrap.user .msg-actions { right: auto; left: 0; }
-    .msg-actions button {
-      background: transparent; border: none; color: #9aa3b2;
-      font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
-    }
-    .msg-actions button:hover { background: #2a2d35; color: #e8eaed; }
-    .msg-actions button.danger:hover { background: #7a3a3a; color: #fff; }
-    @media (hover: none) { .msg-actions { display: none; } }
+    .msg-wrap:hover .msg-trigger { opacity: 1; }
+    .msg-trigger:hover { background: #4f7cff; color: #fff; }
+    .msg-wrap.user .msg-trigger { right: auto; left: -8px; }
+    @media (hover: none) { .msg-trigger { display: none; } }
 
     .msg { line-height: 1.65; word-break: break-word; }
     .msg.user {
@@ -332,19 +337,21 @@
     .run-bar button:hover { background: #3a3f4c; }
     #run-frame { flex: 1; border: none; background: #fff; }
 
-    .conv-menu {
+    /* ===== 会话菜单 & 消息菜单 ===== */
+    .floating-menu {
       position: fixed; background: #1c1f2a; border: 1px solid #2a2d35;
-      border-radius: 8px; padding: 4px; z-index: 500;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      min-width: 140px;
+      border-radius: 8px; padding: 4px; z-index: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      min-width: 130px;
     }
-    .conv-menu button {
+    .floating-menu button {
       display: block; width: 100%; text-align: left;
       background: transparent; border: none; color: #e8eaed;
       padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
     }
-    .conv-menu button:hover { background: #2a2d35; }
-    .conv-menu button.danger { color: #ff8080; }
+    .floating-menu button:hover { background: #2a2d35; }
+    .floating-menu button.danger { color: #ff8080; }
+    .floating-menu button.danger:hover { background: #5a2a2a; }
 
     /* ===== 移动端 ===== */
     @media (max-width: 768px) {
@@ -522,6 +529,20 @@
   </div>
 </div>
 
+<!-- 修改消息 -->
+<div class="modal" id="edit-msg-modal">
+  <div class="modal-content">
+    <h2 id="edit-msg-title">修改消息</h2>
+    <label>内容
+      <textarea id="edit-msg-content" style="min-height:140px;"></textarea>
+    </label>
+    <div class="modal-actions">
+      <button id="edit-msg-cancel">取消</button>
+      <button id="edit-msg-save" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 全局设置 -->
 <div class="modal" id="global-settings-modal">
   <div class="modal-content">
@@ -595,13 +616,13 @@
   let settings = { temperature: 0.7, maxTokens: 0 };
   let apiKey = '';
   let streaming = null;
-  let convMenu = null;
+  let floatingMenu = null;
+  let editMsgTarget = null;
 
   // ===== 存储 =====
   function loadAll() {
     try { convs = JSON.parse(localStorage.getItem(LS.CONVS) || '[]'); } catch { convs = []; }
     if (!Array.isArray(convs)) convs = [];
-    // 数据迁移与防御
     convs.forEach(c => {
       if (!c.id) c.id = uid();
       if (!c.roleplay) c.roleplay = { enabled: false, name: '', personality: '', style: '', background: '' };
@@ -614,7 +635,6 @@
     currentId = localStorage.getItem(LS.CURRENT) || '';
     apiKey = localStorage.getItem(LS.KEY) || '';
 
-    // 恢复侧边栏宽度
     const w = parseInt(localStorage.getItem(LS.SIDEBAR_W), 10);
     if (w && w >= 200 && w <= 480) $sidebar.style.width = w + 'px';
   }
@@ -642,9 +662,7 @@
     userScrolledUp = !nearBottom;
   });
   function scrollBottom(force = false) {
-    if (force || !userScrolledUp) {
-      $messages.scrollTop = $messages.scrollHeight;
-    }
+    if (force || !userScrolledUp) $messages.scrollTop = $messages.scrollHeight;
   }
 
   // ===== Markdown =====
@@ -851,15 +869,9 @@
   }
 
   function switchConversation(id) {
-    // 关键修复：数据一致性 + 幂等
-    if (!getById(id)) return;   // 不存在
+    if (!getById(id)) return;
     if (id === currentId) { closeSidebar(); return; }
-
-    // 流式切换到其他对话时，中断（内容会在 finally 里存到原对话）
-    if (streaming) {
-      try { streaming.abortController.abort(); } catch {}
-    }
-
+    if (streaming) { try { streaming.abortController.abort(); } catch {} }
     currentId = id;
     userScrolledUp = false;
     saveCurrent();
@@ -872,17 +884,23 @@
     const conv = getById(id);
     if (!conv) return;
     if (!confirm(`确定删除对话「${conv.title}」？`)) return;
-    if (streaming && streaming.convId === id) {
-      try { streaming.abortController.abort(); } catch {}
-    }
+    if (streaming && streaming.convId === id) { try { streaming.abortController.abort(); } catch {} }
     convs = convs.filter(c => c.id !== id);
-    if (currentId === id) {
-      currentId = convs[0]?.id || '';
-      saveCurrent();
-    }
+    if (currentId === id) { currentId = convs[0]?.id || ''; saveCurrent(); }
     saveConvs();
     renderConvList();
     renderCurrent();
+  }
+
+  function resetConversation(id) {
+    const conv = getById(id);
+    if (!conv) return;
+    if (!confirm(`清空「${conv.title}」的所有聊天记录？\n角色设定、标题、模型保持不变。`)) return;
+    if (streaming && streaming.convId === id) { try { streaming.abortController.abort(); } catch {} }
+    conv.messages = [];
+    conv.updatedAt = Date.now();
+    saveConvs();
+    if (conv.id === currentId) renderCurrent();
   }
 
   function exportConversation(conv) {
@@ -903,11 +921,10 @@
     downloadText(`${conv.title.replace(/[\\/:*?"<>|]/g, '_')}-${tsStamp()}.md`, lines.join('\n'), 'text/markdown');
   }
 
-  // ===== 渲染列表（分区） =====
+  // ===== 渲染列表 =====
   function renderConvList() {
     const normal = convs.filter(c => !c.roleplay?.enabled);
     const roleplay = convs.filter(c => c.roleplay?.enabled);
-
     $convList.innerHTML = '';
 
     if (normal.length === 0 && roleplay.length === 0) {
@@ -925,7 +942,6 @@
       $convList.appendChild(t);
       normal.forEach(c => $convList.appendChild(makeConvItem(c)));
     }
-
     if (roleplay.length > 0) {
       const t = document.createElement('div');
       t.className = 'conv-section-title';
@@ -948,30 +964,14 @@
     menuBtn.className = 'conv-item-menu';
     menuBtn.textContent = '⋯';
     menuBtn.title = '更多';
-
-    // 菜单按钮：阻止冒泡，避免触发父 item 的切换
     menuBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      e.preventDefault();
+      e.stopPropagation(); e.preventDefault();
       showConvMenu(conv.id, menuBtn);
-    });
-    // 移动端长按
-    let longPressTimer = null;
-    menuBtn.addEventListener('touchstart', e => {
-      longPressTimer = setTimeout(() => {
-        showConvMenu(conv.id, menuBtn);
-      }, 500);
-    }, { passive: true });
-    menuBtn.addEventListener('touchend', () => {
-      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     });
 
     item.appendChild(title);
     item.appendChild(menuBtn);
-
-    // 核心点击：切换对话
-    item.addEventListener('click', (e) => {
-      // 防御性：如果点在菜单按钮上，忽略
+    item.addEventListener('click', e => {
       if (e.target.closest('.conv-item-menu')) return;
       e.stopPropagation();
       switchConversation(conv.id);
@@ -980,25 +980,45 @@
     return item;
   }
 
+  // ===== 通用浮动菜单 =====
+  function closeFloatingMenu() {
+    if (floatingMenu) { floatingMenu.remove(); floatingMenu = null; }
+    document.removeEventListener('mousedown', onFloatOutside, true);
+    document.removeEventListener('touchstart', onFloatOutside, true);
+  }
+  function onFloatOutside(e) {
+    if (floatingMenu && !floatingMenu.contains(e.target)) closeFloatingMenu();
+  }
+  function positionMenu(menu, x, y) {
+    document.body.appendChild(menu);
+    const rect = menu.getBoundingClientRect();
+    const W = window.innerWidth, H = window.innerHeight;
+    let left = x - rect.width / 2;
+    let top = y + 8;
+    if (left < 8) left = 8;
+    if (left + rect.width > W - 8) left = W - rect.width - 8;
+    if (top + rect.height > H - 8) top = y - rect.height - 8;
+    if (top < 8) top = 8;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+  }
+  function bindFloatOutside() {
+    setTimeout(() => {
+      document.addEventListener('mousedown', onFloatOutside, true);
+      document.addEventListener('touchstart', onFloatOutside, true);
+    }, 0);
+  }
+
   // ===== 会话菜单 =====
-  function closeConvMenu() {
-    if (convMenu) { convMenu.remove(); convMenu = null; }
-    document.removeEventListener('mousedown', onGlobalMouseDown, true);
-    document.removeEventListener('touchstart', onGlobalMouseDown, true);
-  }
-  function onGlobalMouseDown(e) {
-    if (convMenu && !convMenu.contains(e.target)) closeConvMenu();
-  }
   function showConvMenu(id, anchorEl) {
-    closeConvMenu();
+    closeFloatingMenu();
     const conv = getById(id);
     if (!conv) return;
 
     const isRoleplay = !!conv.roleplay?.enabled;
     const menu = document.createElement('div');
-    menu.className = 'conv-menu';
+    menu.className = 'floating-menu';
 
-    // 根据模式决定菜单项
     const items = [];
     if (isRoleplay) {
       items.push({ a: 'edit-title', label: '编辑标题' });
@@ -1006,6 +1026,7 @@
     } else {
       items.push({ a: 'edit-title', label: '重命名' });
     }
+    items.push({ a: 'reset', label: '重置对话' });
     items.push({ a: 'export', label: '导出 Markdown' });
     items.push({ a: 'delete', label: '删除', cls: 'danger' });
 
@@ -1014,7 +1035,7 @@
       btn.textContent = it.label;
       if (it.cls) btn.className = it.cls;
       btn.addEventListener('click', () => {
-        closeConvMenu();
+        closeFloatingMenu();
         if (it.a === 'edit-title') {
           const t = prompt('输入新标题', conv.title);
           if (t !== null) {
@@ -1024,6 +1045,8 @@
           }
         } else if (it.a === 'edit-roleplay') {
           openConvSettings(conv.id);
+        } else if (it.a === 'reset') {
+          resetConversation(conv.id);
         } else if (it.a === 'export') {
           exportConversation(conv);
         } else if (it.a === 'delete') {
@@ -1034,16 +1057,173 @@
     });
 
     const rect = anchorEl.getBoundingClientRect();
-    menu.style.top = (rect.bottom + 4) + 'px';
-    menu.style.left = Math.min(rect.left, window.innerWidth - 160) + 'px';
-    document.body.appendChild(menu);
-    convMenu = menu;
-
-    setTimeout(() => {
-      document.addEventListener('mousedown', onGlobalMouseDown, true);
-      document.addEventListener('touchstart', onGlobalMouseDown, true);
-    }, 0);
+    positionMenu(menu, rect.left + rect.width / 2, rect.bottom);
+    floatingMenu = menu;
+    bindFloatOutside();
   }
+
+  // ===== 消息菜单（修改/删除/重新生成） =====
+  function showMsgMenu(msgWrap, msg, x, y) {
+    if (streaming) return; // 流式中不允许操作
+    closeFloatingMenu();
+    const conv = getCurrent();
+    if (!conv) return;
+    const idx = conv.messages.indexOf(msg);
+    if (idx < 0) return;
+
+    const isLast = idx === conv.messages.length - 1;
+    const isLastAssistant = isLast && msg.role === 'assistant';
+
+    const menu = document.createElement('div');
+    menu.className = 'floating-menu';
+
+    // 修改
+    const editBtn = document.createElement('button');
+    editBtn.textContent = '修改';
+    editBtn.addEventListener('click', () => {
+      closeFloatingMenu();
+      openEditMsg(conv.id, idx);
+    });
+    menu.appendChild(editBtn);
+
+    // 重新生成（仅最后一条助手消息）
+    if (isLastAssistant) {
+      const regenBtn = document.createElement('button');
+      regenBtn.textContent = '重新生成';
+      regenBtn.addEventListener('click', () => {
+        closeFloatingMenu();
+        regenerate(idx);
+      });
+      menu.appendChild(regenBtn);
+    }
+
+    // 删除
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger';
+    delBtn.textContent = '删除';
+    delBtn.addEventListener('click', () => {
+      closeFloatingMenu();
+      if (!confirm('删除此消息及之后的所有消息？')) return;
+      conv.messages.splice(idx);
+      conv.updatedAt = Date.now();
+      saveConvs();
+      renderCurrent();
+    });
+    menu.appendChild(delBtn);
+
+    positionMenu(menu, x, y);
+    floatingMenu = menu;
+    bindFloatOutside();
+  }
+
+  // ===== 消息交互绑定 =====
+  function attachMsgInteractions(wrap, msg) {
+    // ⋯ 触发按钮
+    const trigger = document.createElement('button');
+    trigger.className = 'msg-trigger';
+    trigger.type = 'button';
+    trigger.textContent = '⋯';
+    trigger.title = '更多操作';
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      const rect = trigger.getBoundingClientRect();
+      showMsgMenu(wrap, msg, rect.left + rect.width / 2, rect.bottom + 4);
+    });
+    wrap.appendChild(trigger);
+
+    // 触摸长按
+    let timer = null, startX = 0, startY = 0, fired = false;
+    const cancelTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
+
+    wrap.addEventListener('touchstart', e => {
+      if (e.target.closest('pre, code, a, .code-actions, .msg-trigger')) return;
+      fired = false;
+      const t = e.touches[0];
+      startX = t.clientX; startY = t.clientY;
+      cancelTimer();
+      timer = setTimeout(() => {
+        fired = true;
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch {} }
+        showMsgMenu(wrap, msg, startX, startY);
+      }, 500);
+    }, { passive: true });
+
+    wrap.addEventListener('touchmove', e => {
+      if (!timer) return;
+      const t = e.touches[0];
+      if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) cancelTimer();
+    }, { passive: true });
+
+    wrap.addEventListener('touchend', e => {
+      cancelTimer();
+      if (fired) { e.preventDefault(); fired = false; }
+    });
+    wrap.addEventListener('touchcancel', cancelTimer);
+
+    // 右键
+    wrap.addEventListener('contextmenu', e => {
+      if (e.target.closest('pre, code, a')) return; // 代码块内保留浏览器默认
+      e.preventDefault();
+      showMsgMenu(wrap, msg, e.clientX, e.clientY);
+    });
+  }
+
+  // ===== 修改消息 =====
+  function openEditMsg(convId, idx) {
+    const conv = getById(convId);
+    if (!conv || !conv.messages[idx]) return;
+    const msg = conv.messages[idx];
+    editMsgTarget = { convId, idx };
+    $('edit-msg-title').textContent = msg.role === 'user' ? '修改用户消息' : '修改助手消息';
+    $('edit-msg-content').value = msg.content || '';
+    $('edit-msg-modal').classList.add('show');
+    setTimeout(() => $('edit-msg-content').focus(), 50);
+  }
+
+  $('edit-msg-cancel').onclick = () => {
+    $('edit-msg-modal').classList.remove('show');
+    editMsgTarget = null;
+  };
+
+  $('edit-msg-save').onclick = async () => {
+    if (!editMsgTarget) return;
+    const { convId, idx } = editMsgTarget;
+    const conv = getById(convId);
+    if (!conv) { $('edit-msg-modal').classList.remove('show'); editMsgTarget = null; return; }
+    const msg = conv.messages[idx];
+    if (!msg) { $('edit-msg-modal').classList.remove('show'); editMsgTarget = null; return; }
+
+    const newContent = $('edit-msg-content').value.trim();
+    if (!newContent) { alert('内容不能为空'); return; }
+
+    const isUser = msg.role === 'user';
+    const hasAfter = idx < conv.messages.length - 1;
+
+    if (isUser && hasAfter) {
+      if (!confirm('修改用户消息将从这条开始重新生成，其后的对话会被删除。是否继续？')) return;
+    }
+
+    $('edit-msg-modal').classList.remove('show');
+    editMsgTarget = null;
+
+    msg.content = newContent;
+
+    if (isUser) {
+      // 用户消息：删除之后所有，重新生成
+      conv.messages.splice(idx + 1);
+      conv.updatedAt = Date.now();
+      saveConvs();
+      if (conv.id === currentId) {
+        renderCurrent();
+        await generateAssistant(conv);
+      }
+    } else {
+      // 助手消息：只更新该条
+      conv.updatedAt = Date.now();
+      saveConvs();
+      if (conv.id === currentId) renderCurrent();
+    }
+  };
 
   // ===== 渲染消息 =====
   function renderCurrent() {
@@ -1063,8 +1243,6 @@
     }
 
     $convTitle.textContent = conv.title || '新对话';
-
-    // 模型下拉：确保值存在
     const modelExists = Array.from($model.options).some(o => o.value === conv.model);
     $model.value = modelExists ? conv.model : 'openrouter/free';
     if (!modelExists) conv.model = 'openrouter/free';
@@ -1082,7 +1260,6 @@
 
   function appendMessageDOM(msg) {
     if (!msg || !msg.role) return;
-
     const wrap = document.createElement('div');
     wrap.className = `msg-wrap ${msg.role}`;
 
@@ -1110,64 +1287,28 @@
       $messages.appendChild(wrap);
     }
 
-    attachMessageActions(wrap, msg);
+    attachMsgInteractions(wrap, msg);
     return wrap;
   }
 
-  function attachMessageActions(wrap, msg) {
-    const conv = getCurrent();
-    if (!conv) return;
-
-    const actions = document.createElement('div');
-    actions.className = 'msg-actions';
-
-    // 重新生成：只在最后一条助手消息上显示
-    if (msg.role === 'assistant') {
-      const idx = conv.messages.indexOf(msg);
-      const isLast = idx === conv.messages.length - 1;
-      if (isLast && !streaming) {
-        const regenBtn = document.createElement('button');
-        regenBtn.textContent = '重新生成';
-        regenBtn.addEventListener('click', () => regenerate(idx));
-        actions.appendChild(regenBtn);
-      }
-    }
-
-    const delBtn = document.createElement('button');
-    delBtn.textContent = '删除';
-    delBtn.className = 'danger';
-    delBtn.addEventListener('click', () => {
-      const idx = conv.messages.indexOf(msg);
-      if (idx < 0) return;
-      if (!confirm('删除此消息及之后的所有消息？')) return;
-      conv.messages.splice(idx);
-      saveConvs();
-      renderCurrent();
-    });
-    actions.appendChild(delBtn);
-
-    wrap.appendChild(actions);
-  }
-
-  // ===== 重新生成 =====
+  // ===== 重新生成（仅限最后一条助手消息） =====
   async function regenerate(fromIdx) {
     const conv = getCurrent();
     if (!conv || streaming) return;
-    // 截断到该条助手消息之前（保留更早的对话）
+    // 安全校验：必须是最后一条且是助手
+    if (fromIdx !== conv.messages.length - 1) return;
+    if (conv.messages[fromIdx]?.role !== 'assistant') return;
+
     conv.messages.splice(fromIdx);
+    conv.updatedAt = Date.now();
     saveConvs();
     renderCurrent();
 
-    // 触发一次仅生成（用空用户消息占位太丑，直接复用最后一条用户消息）
-    const lastUserIdx = [...conv.messages].reverse().findIndex(m => m.role === 'user');
-    if (lastUserIdx < 0) return;
-    // 因为前面 splice 已删掉最后助手，最后一条就是用户消息
     if (conv.messages[conv.messages.length - 1]?.role !== 'user') return;
-
     await generateAssistant(conv);
   }
 
-  // ===== 通用生成（被 send 和 regenerate 共用） =====
+  // ===== 生成（send 和 regenerate 共用） =====
   async function generateAssistant(conv) {
     if (!apiKey) { alert('请先在设置里填入 API Key'); openGlobalSettings(); return; }
     if (streaming) return;
@@ -1175,7 +1316,6 @@
     const myConvId = conv.id;
     userScrolledUp = false;
 
-    // 构建容器
     const wrap = document.createElement('div');
     wrap.className = 'msg-wrap assistant';
     const assistantDiv = document.createElement('div');
@@ -1192,7 +1332,7 @@
 
     const renderer = makeRenderer(contentEl);
     const abortController = new AbortController();
-    streaming = { convId: myConvId, assistantDiv, contentEl, renderer, abortController };
+    streaming = { convId: myConvId, assistantDiv, contentEl, renderer, abortController, msgWrap: wrap };
     setStreamingUI(true);
 
     let wasAborted = false;
@@ -1258,24 +1398,20 @@
       }
     } finally {
       contentEl.classList.remove('streaming');
-      const targetConv = getById(myConvId);   // 关键：用锁定的 id 找回对话
+      const targetConv = getById(myConvId);
       if (renderer.text && targetConv) {
         renderer.flush();
         addCodeActions(contentEl);
         highlightAll(contentEl);
         let finalContent = renderer.text;
         if (wasAborted) finalContent += '\n\n*（已停止）*';
-        targetConv.messages.push({ role: 'assistant', content: finalContent });
+        const newMsg = { role: 'assistant', content: finalContent };
+        targetConv.messages.push(newMsg);
         targetConv.updatedAt = Date.now();
         saveConvs();
-        // 如果当前还在这个对话，重建操作按钮
+        // 给 wrap 绑定交互
         if (currentId === myConvId) {
-          const wraps = $messages.querySelectorAll('.msg-wrap.assistant');
-          const last = wraps[wraps.length - 1];
-          if (last) {
-            last.querySelectorAll('.msg-actions').forEach(el => el.remove());
-            attachMessageActions(last, targetConv.messages[targetConv.messages.length - 1]);
-          }
+          attachMsgInteractions(wrap, newMsg);
         }
       } else if (!renderer.text) {
         wrap.remove();
@@ -1299,7 +1435,8 @@
     $input.style.height = '44px';
     $input.focus();
 
-    conv.messages.push({ role: 'user', content: text });
+    const newMsg = { role: 'user', content: text };
+    conv.messages.push(newMsg);
     conv.updatedAt = Date.now();
     if (conv.title === '新对话') {
       conv.title = text.slice(0, 24) + (text.length > 24 ? '…' : '');
@@ -1307,7 +1444,7 @@
     }
     saveConvs();
     renderConvList();
-    appendMessageDOM({ role: 'user', content: text });
+    appendMessageDOM(newMsg);
     scrollBottom(true);
 
     await generateAssistant(conv);
@@ -1373,18 +1510,15 @@
     createConversation(opts);
   };
 
-  // ===== 对话设置（普通模式无角色字段） =====
+  // ===== 对话设置 =====
   let csTargetId = '';
   function openConvSettings(id) {
     const conv = getById(id);
     if (!conv) return;
     csTargetId = id;
     const isRoleplay = !!conv.roleplay?.enabled;
-
     $('cs-heading').textContent = isRoleplay ? '编辑角色扮演' : '编辑标题';
     $('cs-title').value = conv.title || '';
-
-    // 关键修复：普通模式彻底隐藏人设区域
     const rpForm = $('cs-roleplay-only');
     if (isRoleplay) {
       rpForm.style.display = 'block';
@@ -1395,7 +1529,6 @@
     } else {
       rpForm.style.display = 'none';
     }
-
     $('conv-settings-modal').classList.add('show');
   }
   $('cs-cancel').onclick = () => $('conv-settings-modal').classList.remove('show');
@@ -1403,15 +1536,12 @@
     const conv = getById(csTargetId);
     if (!conv) return;
     conv.title = $('cs-title').value.trim() || conv.title;
-
     if (conv.roleplay?.enabled) {
-      // 保留 enabled:true 和字段
       conv.roleplay.name = $('cs-rp-name').value.trim();
       conv.roleplay.personality = $('cs-rp-personality').value.trim();
       conv.roleplay.style = $('cs-rp-style').value.trim();
       conv.roleplay.background = $('cs-rp-background').value.trim();
     }
-
     saveConvs();
     renderConvList();
     if (conv.id === currentId) renderCurrent();
@@ -1449,7 +1579,7 @@
     $('global-settings-modal').classList.remove('show');
   };
 
-  // ===== 侧边栏 & 拖拽 =====
+  // ===== 侧边栏 =====
   function openSidebar() {
     $sidebar.classList.add('open');
     $sidebarBackdrop.classList.add('show');
