@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 聊天</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e8eaed;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #2a2d35;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: #151821;
+    }
+    header h1 { font-size: 16px; font-weight: 600; margin-right: auto; }
+    input, select, button { font-family: inherit; font-size: 14px; }
+    .key-input {
+      background: #0f1117; border: 1px solid #2a2d35; border-radius: 8px;
+      padding: 7px 10px; color: #e8eaed; width: 200px;
+    }
+    .key-input:focus { outline: none; border-color: #4f7cff; }
+    .model-select {
+      background: #0f1117; border: 1px solid #2a2d35; border-radius: 8px;
+      padding: 7px 10px; color: #e8eaed; max-width: 260px;
+    }
+    #messages {
+      flex: 1; overflow-y: auto; padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .msg { max-width: 88%; line-height: 1.65; word-break: break-word; }
+    .msg.user {
+      align-self: flex-end; background: #2b3a67; padding: 10px 14px;
+      border-radius: 14px 14px 4px 14px; white-space: pre-wrap;
+    }
+    .msg.assistant {
+      align-self: flex-start; background: #1c1f2a; padding: 10px 14px;
+      border-radius: 14px 14px 14px 4px; width: 100%;
+    }
+    .msg.assistant .label { font-size: 11px; color: #7c8595; margin-bottom: 6px; }
+    .msg.error { color: #ff6b6b; background: #2a1a1a; }
+
+    /* ===== Markdown ===== */
+    .md p { margin: 0 0 0.6em; }
+    .md > :last-child { margin-bottom: 0; }
+    .md ul, .md ol { margin: 0.4em 0 0.6em; padding-left: 1.5em; }
+    .md li { margin: 0.2em 0; }
+    .md li > p { margin: 0; }
+    .md h1, .md h2, .md h3, .md h4, .md h5 {
+      margin: 0.9em 0 0.4em; line-height: 1.3; font-weight: 600;
+    }
+    .md h1 { font-size: 1.35em; }
+    .md h2 { font-size: 1.2em; }
+    .md h3 { font-size: 1.08em; }
+    .md code {
+      background: #2a2d35; padding: 2px 5px; border-radius: 4px; font-size: 0.9em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .md pre {
+      background: #0d0f14; border: 1px solid #2a2d35; border-radius: 8px;
+      padding: 12px; overflow-x: auto; position: relative; margin: 0.6em 0;
+    }
+    .md pre code {
+      background: none; padding: 0; font-size: 13px; line-height: 1.55; display: block;
+    }
+    .md blockquote {
+      border-left: 3px solid #4f7cff; margin: 0.5em 0;
+      padding: 0.1em 0 0.1em 12px; color: #b0b6c3;
+    }
+    .md table { border-collapse: collapse; margin: 0.6em 0; display: block; overflow-x: auto; max-width: 100%; }
+    .md th, .md td { border: 1px solid #2a2d35; padding: 6px 10px; }
+    .md th { background: #1c1f2a; font-weight: 600; }
+    .md a { color: #6f9bff; text-decoration: none; }
+    .md a:hover { text-decoration: underline; }
+    .md hr { border: none; border-top: 1px solid #2a2d35; margin: 1em 0; }
+    .md img { max-width: 100%; border-radius: 6px; }
+
+    /* ===== 代码块按钮组 ===== */
+    .code-actions {
+      position: absolute; top: 6px; right: 6px;
+      display: flex; gap: 4px;
+      opacity: 0; transition: opacity 0.15s;
+      z-index: 2;
+    }
+    .md pre:hover .code-actions { opacity: 1; }
+    .code-btn {
+      background: #2a2d35; border: none; color: #b0b6c3;
+      font-size: 11px; padding: 3px 9px; border-radius: 5px; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .code-btn:hover { background: #3a3f4c; color: #e8eaed; }
+    .code-btn.run { background: #2f5c3a; color: #d8f5df; }
+    .code-btn.run:hover { background: #3a7a4a; }
+    .code-btn.ok { background: #3a7a4a; color: #fff; }
+    .code-btn.fail { background: #7a3a3a; color: #fff; }
+    @media (hover: none) {
+      .code-actions { opacity: 1; }
+    }
+
+    /* 流式光标 */
+    .md.streaming > *:last-child::after,
+    .md.streaming:empty::after {
+      content: ''; display: inline-block; width: 7px; height: 1em;
+      background: #e8eaed; vertical-align: text-bottom; margin-left: 3px;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    footer {
+      padding: 12px 16px; border-top: 1px solid #2a2d35; background: #151821;
+      display: flex; gap: 10px;
+    }
+    #input {
+      flex: 1; background: #0f1117; border: 1px solid #2a2d35; border-radius: 10px;
+      padding: 10px 12px; color: #e8eaed; resize: none; height: 44px;
+      max-height: 120px; line-height: 1.5;
+    }
+    #input:focus { outline: none; border-color: #4f7cff; }
+    #send-btn {
+      background: #4f7cff; border: none; border-radius: 10px; padding: 0 20px;
+      color: #fff; font-weight: 600; cursor: pointer; transition: background 0.2s;
+      white-space: nowrap;
+    }
+    #send-btn:hover { background: #3d63d9; }
+    #send-btn:disabled { background: #2a2d35; color: #5a5f6b; cursor: not-allowed; }
+    .hint { font-size: 11px; color: #5a5f6b; padding: 0 16px 8px; }
+
+    /* ===== 运行模态框 ===== */
+    .run-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+      display: none; flex-direction: column; z-index: 1000;
+      backdrop-filter: blur(2px);
+    }
+    .run-modal.show { display: flex; }
+    .run-bar {
+      background: #151821; padding: 10px 14px; display: flex; align-items: center;
+      gap: 10px; border-bottom: 1px solid #2a2d35; color: #e8eaed; font-size: 13px;
+    }
+    .run-bar .spacer { flex: 1; }
+    .run-bar .tag {
+      background: #2a2d35; color: #9aa3b2; font-size: 11px;
+      padding: 2px 8px; border-radius: 4px;
+    }
+    .run-bar button {
+      background: #2a2d35; border: none; color: #e8eaed; font-size: 12px;
+      padding: 5px 12px; border-radius: 6px; cursor: pointer;
+    }
+    .run-bar button:hover { background: #3a3f4c; }
+    #run-frame {
+      flex: 1; border: none; background: #fff;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 10px 12px; }
+      .key-input { width: 100%; }
+      #messages { padding: 14px 12px; }
+      .msg { max-width: 95%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AI 聊天</h1>
+  <input class="key-input" id="api-key" type="password" placeholder="OpenRouter API Key" autocomplete="off">
+  <select class="model-select" id="model">
+    <option value="openrouter/free">自动选择免费模型</option>
+    <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (免费)</option>
+    <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (免费)</option>
+    <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (免费)</option>
+    <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Nemotron 3 Ultra (免费)</option>
+  </select>
+</header>
+
+<div id="messages">
+  <div class="msg assistant">
+    <div class="label">助手</div>
+    <div class="md">
+      <p>你好！填入 OpenRouter API Key 开始聊天。代码块右上角会出现 <b>复制 / 下载 / 运行</b> 按钮。</p>
+      <pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;body style="background:#111;color:#0f0;font:16px monospace;display:grid;place-items:center;height:100vh"&gt;
+  &lt;h1&gt;Hello 👋&lt;/h1&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <textarea id="input" placeholder="输入消息…（Enter 发送，Shift+Enter 换行）"></textarea>
+  <button id="send-btn">发送</button>
+</footer>
+<div class="hint">Key 仅保存在当前页面内存中，刷新即清空。</div>
+
+<!-- 运行预览模态框 -->
+<div class="run-modal" id="run-modal">
+  <div class="run-bar">
+    <span>运行预览</span>
+    <span class="tag" id="run-tag">HTML</span>
+    <span class="spacer"></span>
+    <button id="run-reload">重新加载</button>
+    <button id="run-close">关闭</button>
+  </div>
+  <iframe id="run-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock"></iframe>
+</div>
+
+<script>
+(() => {
+  const $messages = document.getElementById('messages');
+  const $input = document.getElementById('input');
+  const $sendBtn = document.getElementById('send-btn');
+  const $apiKey = document.getElementById('api-key');
+  const $model = document.getElementById('model');
+  const $runModal = document.getElementById('run-modal');
+  const $runFrame = document.getElementById('run-frame');
+  const $runTag = document.getElementById('run-tag');
+
+  const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  const RENDER_INTERVAL = 80;
+
+  let history = [];
+  let abortController = null;
+  let currentRunUrl = null;
+
+  // ============ Markdown ============
+  if (window.marked) marked.setOptions({ gfm: true, breaks: true });
+
+  function renderMarkdown(container, text) {
+    if (!window.marked) { container.textContent = text; return; }
+    const html = marked.parse(text);
+    const safe = window.DOMPurify
+      ? DOMPurify.sanitize(html, { ADD_ATTR: ['target'] })
+      : html;
+    container.innerHTML = safe;
+
+    container.querySelectorAll('a').forEach(a => {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    });
+  }
+
+  function highlightAll(container) {
+    if (!window.hljs) return;
+    container.querySelectorAll('pre code').forEach(el => {
+      try {
+        delete el.dataset.highlighted;
+        hljs.highlightElement(el);
+      } catch (_) {}
+    });
+  }
+
+  // ============ 语言 / 后缀检测 ============
+  const EXT_MAP = {
+    python: 'py', py: 'py', python3: 'py',
+    javascript: 'js', js: 'js', jsx: 'jsx', node: 'js', nodejs: 'js', mjs: 'mjs', cjs: 'cjs',
+    typescript: 'ts', ts: 'ts', tsx: 'tsx',
+    html: 'html', htm: 'html', xhtml: 'xhtml',
+    css: 'css', scss: 'scss', sass: 'sass', less: 'less',
+    svg: 'svg', xml: 'xml',
+    json: 'json', json5: 'json5', jsonc: 'jsonc',
+    yaml: 'yml', yml: 'yml',
+    markdown: 'md', md: 'md',
+    shell: 'sh', sh: 'sh', bash: 'sh', zsh: 'sh', fish: 'fish',
+    powershell: 'ps1', ps1: 'ps1', pwsh: 'ps1',
+    cmd: 'bat', bat: 'bat', batch: 'bat',
+    c: 'c', h: 'h',
+    cpp: 'cpp', 'c++': 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'hpp', 'c++-header': 'hpp',
+    csharp: 'cs', cs: 'cs', 'c#': 'cs',
+    java: 'java',
+    kotlin: 'kt', kt: 'kt', kts: 'kts',
+    go: 'go', golang: 'go',
+    rust: 'rs', rs: 'rs',
+    ruby: 'rb', rb: 'rb',
+    php: 'php',
+    swift: 'swift',
+    dart: 'dart',
+    scala: 'scala',
+    lua: 'lua',
+    r: 'r',
+    sql: 'sql',
+    perl: 'pl', pl: 'pl',
+    elixir: 'ex', ex: 'ex', exs: 'exs',
+    erlang: 'erl', erl: 'erl',
+    haskell: 'hs', hs: 'hs',
+    clojure: 'clj', clj: 'clj', cljs: 'cljs',
+    dockerfile: 'Dockerfile', docker: 'Dockerfile',
+    makefile: 'Makefile', make: 'Makefile',
+    nginx: 'conf', ini: 'ini', toml: 'toml', conf: 'conf', env: 'env',
+    plaintext: 'txt', text: 'txt', txt: 'txt', plain: 'txt',
+  };
+
+  function detectLang(codeEl) {
+    const cls = codeEl.className || '';
+    let m = cls.match(/(?:^|\s)language-([\w+#.\-]+)/i);
+    if (m) return m[1].toLowerCase();
+    m = cls.match(/(?:^|\s)lang-([\w+#.\-]+)/i);
+    if (m) return m[1].toLowerCase();
+    if (codeEl.result && codeEl.result.language) return codeEl.result.language.toLowerCase();
+    return '';
+  }
+
+  function langToExt(lang) {
+    if (!lang) return 'txt';
+    return EXT_MAP[lang] || lang.replace(/[^\w+#\-]/g, '');
+  }
+
+  // 识别可运行类型（html / svg / null）
+  function detectRunnableKind(lang, code) {
+    const l = (lang || '').toLowerCase();
+    if (l === 'html' || l === 'htm' || l === 'xhtml') return 'html';
+    if (l === 'svg') return 'svg';
+    const t = code.trim();
+    if (/^<svg[\s>]/i.test(t)) return 'svg';
+    if (/^<!doctype\s+html/i.test(t) || /^<html[\s>]/i.test(t)) return 'html';
+    return null;
+  }
+
+  // ============ 文件工具 ============
+  function tsStamp() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  }
+
+  function mimeForExt(ext) {
+    switch (ext.toLowerCase()) {
+      case 'html': case 'htm': return 'text/html';
+      case 'svg': return 'image/svg+xml';
+      case 'xml': return 'application/xml';
+      case 'json': return 'application/json';
+      case 'css': return 'text/css';
+      case 'js': case 'mjs': case 'cjs': return 'text/javascript';
+      case 'ts': return 'text/typescript';
+      default: return 'text/plain';
+    }
+  }
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (_) {}
+    // 降级
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function downloadText(filename, text, mime) {
+    const blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ============ 运行（仅 html / svg） ============
+  function runCode(code, kind) {
+    let html;
+    if (kind === 'svg') {
+      const t = code.trim();
+      if (/^<!doctype\s+html/i.test(t) || /^<html[\s>]/i.test(t)) {
+        html = code;
+      } else {
+        html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;height:100%;display:flex;align-items:center;justify-content:center;background:#fff;}</style>
+</head><body>${code}</body></html>`;
+      }
+    } else {
+      html = code;
+    }
+
+    if (currentRunUrl) {
+      URL.revokeObjectURL(currentRunUrl);
+      currentRunUrl = null;
+    }
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    currentRunUrl = URL.createObjectURL(blob);
+
+    $runTag.textContent = kind.toUpperCase();
+    $runFrame.src = currentRunUrl;
+    $runModal.classList.add('show');
+  }
+
+  function closeRun() {
+    $runModal.classList.remove('show');
+    $runFrame.src = 'about:blank';
+    if (currentRunUrl) {
+      URL.revokeObjectURL(currentRunUrl);
+      currentRunUrl = null;
+    }
+  }
+
+  document.getElementById('run-close').onclick = closeRun;
+  document.getElementById('run-reload').onclick = () => {
+    const src = $runFrame.src;
+    $runFrame.src = 'about:blank';
+    setTimeout(() => { $runFrame.src = src; }, 30);
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $runModal.classList.contains('show')) closeRun();
+  });
+
+  // ============ 给代码块添加按钮 ============
+  function addCodeActions(container) {
+    container.querySelectorAll('pre').forEach(pre => {
+      if (pre.querySelector('.code-actions')) return;
+      const codeEl = pre.querySelector('code');
+      if (!codeEl) return;
+
+      const code = codeEl.textContent;
+      const lang = detectLang(codeEl);
+      const ext = langToExt(lang);
+      const kind = detectRunnableKind(lang, code);
+
+      const actions = document.createElement('div');
+      actions.className = 'code-actions';
+
+      // 复制
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'code-btn';
+      copyBtn.textContent = '复制';
+      copyBtn.title = '复制代码';
+      copyBtn.addEventListener('click', async () => {
+        const ok = await copyText(codeEl.textContent);
+        copyBtn.textContent = ok ? '已复制' : '失败';
+        copyBtn.classList.add(ok ? 'ok' : 'fail');
+        setTimeout(() => {
+          copyBtn.textContent = '复制';
+          copyBtn.classList.remove('ok', 'fail');
+        }, 1500);
+      });
+      actions.appendChild(copyBtn);
+
+      // 下载
+      const dlBtn = document.createElement('button');
+      dlBtn.type = 'button';
+      dlBtn.className = 'code-btn';
+      dlBtn.textContent = '下载';
+      dlBtn.title = `下载 .${ext}`;
+      dlBtn.addEventListener('click', () => {
+        downloadText(`snippet-${tsStamp()}.${ext}`, codeEl.textContent, mimeForExt(ext));
+      });
+      actions.appendChild(dlBtn);
+
+      // 运行（仅 html / svg）
+      if (kind) {
+        const runBtn = document.createElement('button');
+        runBtn.type = 'button';
+        runBtn.className = 'code-btn run';
+        runBtn.textContent = '运行';
+        runBtn.title = `在沙盒中运行 ${kind.toUpperCase()}`;
+        runBtn.addEventListener('click', () => runCode(codeEl.textContent, kind));
+        actions.appendChild(runBtn);
+      }
+
+      pre.appendChild(actions);
+    });
+  }
+
+  // ============ 消息渲染 ============
+  function scrollBottom() {
+    $messages.scrollTop = $messages.scrollHeight;
+  }
+
+  function addMessage(role, content = '') {
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+
+    if (role === 'assistant') {
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = '助手';
+      div.appendChild(label);
+
+      const md = document.createElement('div');
+      md.className = 'md';
+      div.appendChild(md);
+      $messages.appendChild(div);
+      if (content) renderMarkdown(md, content);
+      scrollBottom();
+      return { div, contentEl: md };
+    }
+
+    div.textContent = content;
+    $messages.appendChild(div);
+    scrollBottom();
+    return { div, contentEl: div };
+  }
+
+  function setStreaming(streaming) {
+    $sendBtn.disabled = streaming;
+    $sendBtn.textContent = streaming ? '停止' : '发送';
+    $sendBtn.onclick = streaming ? () => abortController?.abort() : send;
+  }
+
+  // ============ 流式渲染（节流） ============
+  function makeRenderer(contentEl) {
+    let last = 0;
+    let timer = null;
+    let full = '';
+    const doRender = () => {
+      renderMarkdown(contentEl, full);
+      scrollBottom();
+    };
+    return {
+      setText(t) { full = t; },
+      schedule() {
+        const now = performance.now();
+        const remain = RENDER_INTERVAL - (now - last);
+        if (remain <= 0) {
+          if (timer) { clearTimeout(timer); timer = null; }
+          last = now;
+          doRender();
+        } else if (!timer) {
+          timer = setTimeout(() => {
+            timer = null;
+            last = performance.now();
+            doRender();
+          }, remain);
+        }
+      },
+      flush() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        doRender();
+      },
+      get text() { return full; }
+    };
+  }
+
+  // ============ 发送 ============
+  async function send() {
+    const key = $apiKey.value.trim();
+    if (!key) { alert('请先填入 OpenRouter API Key'); return; }
+    const text = $input.value.trim();
+    if (!text) return;
+
+    const model = $model.value;
+    $input.value = '';
+    $input.style.height = '44px';
+
+    history.push({ role: 'user', content: text });
+    addMessage('user', text);
+    $input.focus();
+
+    const { div: assistantDiv, contentEl } = addMessage('assistant');
+    contentEl.classList.add('streaming');
+
+    const renderer = makeRenderer(contentEl);
+    setStreaming(true);
+    abortController = new AbortController();
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, messages: history, stream: true }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errText.slice(0, 300)}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let idx;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx + 1);
+          if (!line || line.startsWith(':')) continue;
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              renderer.setText(renderer.text + delta);
+              renderer.schedule();
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        if (renderer.text) {
+          renderer.setText(renderer.text + '\n\n*（已停止）*');
+          renderer.flush();
+        } else {
+          assistantDiv.remove();
+        }
+      } else {
+        assistantDiv.classList.add('error');
+        contentEl.textContent = `请求失败：${err.message}`;
+      }
+    } finally {
+      contentEl.classList.remove('streaming');
+      if (renderer.text) {
+        renderer.flush();
+        // 关键顺序：先加按钮（读 language-xxx），再高亮（hljs 会移除 language class）
+        addCodeActions(contentEl);
+        highlightAll(contentEl);
+        history.push({ role: 'assistant', content: renderer.text });
+      }
+      setStreaming(false);
+      abortController = null;
+      $input.focus();
+    }
+  }
+
+  // ============ 输入交互 ============
+  $input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!$sendBtn.disabled) send();
+    }
+  });
+  $input.addEventListener('input', () => {
+    $input.style.height = 'auto';
+    $input.style.height = Math.min($input.scrollHeight, 120) + 'px';
+  });
+  $sendBtn.onclick = send;
+
+  // 给初始静态消息也补上按钮与高亮
+  document.querySelectorAll('.md').forEach(md => {
+    addCodeActions(md);
+    highlightAll(md);
+  });
+
+  if (!$apiKey.value) $apiKey.focus();
+})();
+</script>
+</body>
+</html>
