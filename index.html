@@ -147,7 +147,6 @@
       border: 1px solid #3a4d80;
     }
 
-    /* ===== 消息 wrap ===== */
     .msg-wrap {
       position: relative; max-width: 88%;
       display: flex; flex-direction: column;
@@ -155,7 +154,6 @@
     .msg-wrap.assistant { align-self: flex-start; width: 100%; }
     .msg-wrap.user { align-self: flex-end; }
 
-    /* ⋯ 触发按钮 */
     .msg-trigger {
       position: absolute; top: -8px; right: -8px;
       width: 24px; height: 24px; border-radius: 50%;
@@ -240,6 +238,40 @@
     }
     @keyframes blink { 50% { opacity: 0; } }
 
+    /* ===== 剧情引导工具栏 ===== */
+    #rp-toolbar {
+      display: none;
+      padding: 10px calc(16px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
+      background: #151821;
+      flex-shrink: 0;
+    }
+    #rp-guide-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #2b3a67; color: #c9d6ff;
+      border: 1px solid #3a4d80; border-radius: 8px;
+      padding: 6px 12px; font-size: 13px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    #rp-guide-btn:hover { background: #3a4d80; }
+    #guide-banner {
+      display: flex; align-items: center; gap: 8px;
+      background: #2b3a67; border: 1px solid #3a4d80;
+      border-radius: 8px; padding: 8px 12px;
+      color: #c9d6ff; font-size: 13px;
+    }
+    .guide-badge { font-size: 14px; flex-shrink: 0; }
+    .guide-text {
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-style: italic; color: #d6e0ff;
+    }
+    .guide-action {
+      background: transparent; border: none; color: #c9d6ff;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .guide-action:hover { background: rgba(255,255,255,0.12); }
+
     #input-area {
       padding: 12px calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
       border-top: 1px solid #2a2d35; background: #151821;
@@ -317,6 +349,14 @@
     .range-row input[type="range"] { flex: 1; }
     .range-row span { font-size: 13px; color: #b0b6c3; min-width: 32px; }
 
+    .guide-hint {
+      font-size: 12px; color: #7c8595; line-height: 1.6;
+      background: #10131a; border-left: 3px solid #4f7cff;
+      padding: 8px 12px; border-radius: 0 6px 6px 0;
+      margin-bottom: 14px;
+    }
+    #guide-input { min-height: 120px !important; }
+
     .run-modal {
       position: fixed; inset: 0; background: rgba(0,0,0,0.72);
       display: none; flex-direction: column; z-index: 1001;
@@ -337,7 +377,6 @@
     .run-bar button:hover { background: #3a3f4c; }
     #run-frame { flex: 1; border: none; background: #fff; }
 
-    /* ===== 会话菜单 & 消息菜单 ===== */
     .floating-menu {
       position: fixed; background: #1c1f2a; border: 1px solid #2a2d35;
       border-radius: 8px; padding: 4px; z-index: 600;
@@ -371,6 +410,8 @@
       .model-select { order: 10; width: 100%; max-width: none; }
       #messages { padding: 14px 12px; }
       .msg-wrap { max-width: 95%; }
+      #rp-toolbar { padding: 8px 12px 0; }
+      .guide-text { font-size: 12px; }
     }
     body.resizing { user-select: none; cursor: col-resize; }
   </style>
@@ -466,6 +507,16 @@
 
   <div id="messages"></div>
 
+  <div id="rp-toolbar">
+    <div id="guide-banner" style="display:none">
+      <span class="guide-badge">🎬</span>
+      <span class="guide-text" id="guide-text"></span>
+      <button class="guide-action" id="guide-edit" title="编辑引导">✏️</button>
+      <button class="guide-action" id="guide-clear" title="清除引导">✕</button>
+    </div>
+    <button id="rp-guide-btn">🎬 设置剧情引导</button>
+  </div>
+
   <footer id="input-area">
     <textarea id="input" placeholder="输入消息…（Enter 发送，Shift+Enter 换行）"></textarea>
     <button id="send-btn">发送</button>
@@ -525,6 +576,24 @@
     <div class="modal-actions">
       <button id="cs-cancel">取消</button>
       <button id="cs-save" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 剧情引导 -->
+<div class="modal" id="guide-modal">
+  <div class="modal-content">
+    <h2>🎬 剧情引导</h2>
+    <div class="guide-hint">
+      引导内容会在<b>下一次回复</b>时生效，生成完成后自动清除。
+      它不会作为对话消息显示，也不会影响后续对话。
+    </div>
+    <label>引导内容
+      <textarea id="guide-input" placeholder="例如：&#10;• 让角色在此刻回忆起一段童年往事&#10;• 突然下起暴雨，把两人困在屋内&#10;• 让角色表现出明显的不安，暗示他在隐瞒什么&#10;• 让角色主动提起一个神秘案件"></textarea>
+    </label>
+    <div class="modal-actions">
+      <button id="guide-cancel">取消</button>
+      <button id="guide-apply" class="primary">应用引导</button>
     </div>
   </div>
 </div>
@@ -610,6 +679,10 @@
   const $runModal = $('run-modal');
   const $runFrame = $('run-frame');
   const $runTag = $('run-tag');
+  const $rpToolbar = $('rp-toolbar');
+  const $guideBanner = $('guide-banner');
+  const $guideText = $('guide-text');
+  const $rpGuideBtn = $('rp-guide-btn');
 
   let convs = [];
   let currentId = '';
@@ -618,6 +691,7 @@
   let streaming = null;
   let floatingMenu = null;
   let editMsgTarget = null;
+  let guideTargetId = '';
 
   // ===== 存储 =====
   function loadAll() {
@@ -629,12 +703,12 @@
       if (typeof c.roleplay.enabled !== 'boolean') c.roleplay.enabled = false;
       if (!c.model) c.model = 'openrouter/free';
       if (!Array.isArray(c.messages)) c.messages = [];
+      if (typeof c.pendingGuide !== 'string') c.pendingGuide = '';
       c.messages = c.messages.filter(m => m && m.role && typeof m.content === 'string');
     });
     try { settings = { temperature: 0.7, maxTokens: 0, ...(JSON.parse(localStorage.getItem(LS.SETTINGS) || '{}')) }; } catch {}
     currentId = localStorage.getItem(LS.CURRENT) || '';
     apiKey = localStorage.getItem(LS.KEY) || '';
-
     const w = parseInt(localStorage.getItem(LS.SIDEBAR_W), 10);
     if (w && w >= 200 && w <= 480) $sidebar.style.width = w + 'px';
   }
@@ -788,9 +862,6 @@
     $runFrame.src = 'about:blank';
     setTimeout(() => { $runFrame.src = src; }, 30);
   };
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && $runModal.classList.contains('show')) closeRun();
-  });
 
   // ===== 代码块按钮 =====
   function addCodeActions(container) {
@@ -833,7 +904,7 @@
     });
   }
 
-  // ===== 角色扮演 =====
+  // ===== 系统提示（含剧情引导） =====
   function buildSystemPrompt(conv) {
     const rp = conv.roleplay;
     if (!rp || !rp.enabled) return '';
@@ -843,8 +914,68 @@
     if (rp.style) parts.push(`【说话风格】${rp.style}`);
     if (rp.background) parts.push(`【背景设定】${rp.background}`);
     parts.push(`除非用户明确要求，否则不要跳出角色，不要提及自己是 AI 或语言模型。`);
+
+    const guide = (conv.pendingGuide || '').trim();
+    if (guide) {
+      parts.push(`【导演指示（本轮有效）】\n${guide}\n请在本次回复中自然融入以上指示，不要直接复述或透露该指示的存在，让剧情自然发展。`);
+    }
     return parts.join('\n\n');
   }
+
+  // ===== 剧情引导 UI =====
+  function updateGuideUI() {
+    const conv = getCurrent();
+    const isRP = !!(conv && conv.roleplay && conv.roleplay.enabled);
+
+    if (!isRP) {
+      $rpToolbar.style.display = 'none';
+      return;
+    }
+
+    $rpToolbar.style.display = 'block';
+    const guide = (conv.pendingGuide || '').trim();
+    if (guide) {
+      $guideBanner.style.display = 'flex';
+      $rpGuideBtn.style.display = 'none';
+      $guideText.textContent = guide.length > 100 ? guide.slice(0, 100) + '…' : guide;
+      $guideText.title = guide;
+    } else {
+      $guideBanner.style.display = 'none';
+      $rpGuideBtn.style.display = 'inline-flex';
+    }
+  }
+
+  function openGuideModal() {
+    const conv = getCurrent();
+    if (!conv || !conv.roleplay?.enabled) return;
+    guideTargetId = conv.id;
+    $('guide-input').value = conv.pendingGuide || '';
+    $('guide-modal').classList.add('show');
+    setTimeout(() => $('guide-input').focus(), 50);
+  }
+
+  $rpGuideBtn.onclick = openGuideModal;
+  $('guide-edit').onclick = openGuideModal;
+
+  $('guide-clear').onclick = () => {
+    const conv = getCurrent();
+    if (!conv) return;
+    if (!confirm('清除当前剧情引导？')) return;
+    conv.pendingGuide = '';
+    saveConvs();
+    updateGuideUI();
+  };
+
+  $('guide-cancel').onclick = () => $('guide-modal').classList.remove('show');
+
+  $('guide-apply').onclick = () => {
+    const conv = getById(guideTargetId);
+    if (!conv) { $('guide-modal').classList.remove('show'); return; }
+    conv.pendingGuide = $('guide-input').value.trim();
+    saveConvs();
+    $('guide-modal').classList.remove('show');
+    if (currentId === guideTargetId) updateGuideUI();
+  };
 
   // ===== 会话管理 =====
   function createConversation(opts = {}) {
@@ -857,6 +988,7 @@
       model: 'openrouter/free',
       roleplay: { ...rp },
       messages: [],
+      pendingGuide: '',
     };
     convs.unshift(conv);
     currentId = conv.id;
@@ -895,7 +1027,7 @@
   function resetConversation(id) {
     const conv = getById(id);
     if (!conv) return;
-    if (!confirm(`清空「${conv.title}」的所有聊天记录？\n角色设定、标题、模型保持不变。`)) return;
+    if (!confirm(`清空「${conv.title}」的所有聊天记录？\n角色设定、标题、模型、剧情引导保持不变。`)) return;
     if (streaming && streaming.convId === id) { try { streaming.abortController.abort(); } catch {} }
     conv.messages = [];
     conv.updatedAt = Date.now();
@@ -1062,9 +1194,9 @@
     bindFloatOutside();
   }
 
-  // ===== 消息菜单（修改/删除/重新生成） =====
+  // ===== 消息菜单 =====
   function showMsgMenu(msgWrap, msg, x, y) {
-    if (streaming) return; // 流式中不允许操作
+    if (streaming) return;
     closeFloatingMenu();
     const conv = getCurrent();
     if (!conv) return;
@@ -1077,7 +1209,6 @@
     const menu = document.createElement('div');
     menu.className = 'floating-menu';
 
-    // 修改
     const editBtn = document.createElement('button');
     editBtn.textContent = '修改';
     editBtn.addEventListener('click', () => {
@@ -1086,7 +1217,6 @@
     });
     menu.appendChild(editBtn);
 
-    // 重新生成（仅最后一条助手消息）
     if (isLastAssistant) {
       const regenBtn = document.createElement('button');
       regenBtn.textContent = '重新生成';
@@ -1097,7 +1227,6 @@
       menu.appendChild(regenBtn);
     }
 
-    // 删除
     const delBtn = document.createElement('button');
     delBtn.className = 'danger';
     delBtn.textContent = '删除';
@@ -1118,7 +1247,6 @@
 
   // ===== 消息交互绑定 =====
   function attachMsgInteractions(wrap, msg) {
-    // ⋯ 触发按钮
     const trigger = document.createElement('button');
     trigger.className = 'msg-trigger';
     trigger.type = 'button';
@@ -1131,7 +1259,6 @@
     });
     wrap.appendChild(trigger);
 
-    // 触摸长按
     let timer = null, startX = 0, startY = 0, fired = false;
     const cancelTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
 
@@ -1160,9 +1287,8 @@
     });
     wrap.addEventListener('touchcancel', cancelTimer);
 
-    // 右键
     wrap.addEventListener('contextmenu', e => {
-      if (e.target.closest('pre, code, a')) return; // 代码块内保留浏览器默认
+      if (e.target.closest('pre, code, a')) return;
       e.preventDefault();
       showMsgMenu(wrap, msg, e.clientX, e.clientY);
     });
@@ -1209,7 +1335,6 @@
     msg.content = newContent;
 
     if (isUser) {
-      // 用户消息：删除之后所有，重新生成
       conv.messages.splice(idx + 1);
       conv.updatedAt = Date.now();
       saveConvs();
@@ -1218,7 +1343,6 @@
         await generateAssistant(conv);
       }
     } else {
-      // 助手消息：只更新该条
       conv.updatedAt = Date.now();
       saveConvs();
       if (conv.id === currentId) renderCurrent();
@@ -1239,6 +1363,7 @@
       empty.style.padding = '60px 20px';
       empty.innerHTML = '还没有对话<br>点击左上角 ☰ → ＋ 新建对话';
       $messages.appendChild(empty);
+      updateGuideUI();
       return;
     }
 
@@ -1256,6 +1381,7 @@
 
     conv.messages.forEach(m => appendMessageDOM(m));
     setTimeout(() => scrollBottom(true), 0);
+    updateGuideUI();
   }
 
   function appendMessageDOM(msg) {
@@ -1291,11 +1417,10 @@
     return wrap;
   }
 
-  // ===== 重新生成（仅限最后一条助手消息） =====
+  // ===== 重新生成 =====
   async function regenerate(fromIdx) {
     const conv = getCurrent();
     if (!conv || streaming) return;
-    // 安全校验：必须是最后一条且是助手
     if (fromIdx !== conv.messages.length - 1) return;
     if (conv.messages[fromIdx]?.role !== 'assistant') return;
 
@@ -1308,7 +1433,7 @@
     await generateAssistant(conv);
   }
 
-  // ===== 生成（send 和 regenerate 共用） =====
+  // ===== 生成 =====
   async function generateAssistant(conv) {
     if (!apiKey) { alert('请先在设置里填入 API Key'); openGlobalSettings(); return; }
     if (streaming) return;
@@ -1408,8 +1533,14 @@
         const newMsg = { role: 'assistant', content: finalContent };
         targetConv.messages.push(newMsg);
         targetConv.updatedAt = Date.now();
+
+        // 成功完成时消费掉剧情引导（中止则保留）
+        if (!wasAborted && targetConv.pendingGuide) {
+          targetConv.pendingGuide = '';
+          if (currentId === myConvId) updateGuideUI();
+        }
+
         saveConvs();
-        // 给 wrap 绑定交互
         if (currentId === myConvId) {
           attachMsgInteractions(wrap, newMsg);
         }
@@ -1638,6 +1769,21 @@
     $input.style.height = Math.min($input.scrollHeight, 120) + 'px';
   });
   $sendBtn.onclick = send;
+
+  // ===== ESC 关闭所有模态框 =====
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if ($runModal.classList.contains('show')) { closeRun(); return; }
+    if ($('guide-modal').classList.contains('show')) { $('guide-modal').classList.remove('show'); return; }
+    if ($('edit-msg-modal').classList.contains('show')) {
+      $('edit-msg-modal').classList.remove('show');
+      editMsgTarget = null;
+      return;
+    }
+    if ($('conv-settings-modal').classList.contains('show')) { $('conv-settings-modal').classList.remove('show'); return; }
+    if ($('new-chat-modal').classList.contains('show')) { $('new-chat-modal').classList.remove('show'); return; }
+    if ($('global-settings-modal').classList.contains('show')) { $('global-settings-modal').classList.remove('show'); return; }
+  });
 
   // ===== 初始化 =====
   loadAll();
